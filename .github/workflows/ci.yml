@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, feature ]
+    branches: [main, feature]
   pull_request:
-    branches: [ main, feature ]
+    branches: [main, feature]
 
 jobs:
   test:
@@ -15,26 +15,24 @@ jobs:
         node-version: [18.x]
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Install dependencies
-      run: npm install
-      working-directory: ./server    # adapte si ton package.json est dans /server
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./server
 
-    - name: Run tests
-      run: npm test
-      working-directory: ./server
+      - name: Run tests
+        run: npm test
+        working-directory: ./server
 
-    - name: Upload coverage report (optionnel)
-      if: success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: ./server/coverage
-
-
+      - name: Upload coverage report (optionnel)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./server/coverage
