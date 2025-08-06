@@ -1,26 +1,40 @@
-name: Basic CI
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, feature ]
   pull_request:
-    branches: [main, develop]
+    branches: [ main, feature ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    strategy:
+      matrix:
+        node-version: [18.x]
 
-    - name: Setup Node.js
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
-        node-version: '18'  # adapte selon ta version
+        node-version: ${{ matrix.node-version }}
 
     - name: Install dependencies
       run: npm install
+      working-directory: ./server    # adapte si ton package.json est dans /server
 
-    - name: Build project
-      run: npm run build   # ou la commande qui construit ton projet
+    - name: Run tests
+      run: npm test
+      working-directory: ./server
+
+    - name: Upload coverage report (optionnel)
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: ./server/coverage
+
+
