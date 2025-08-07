@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const languageOptions = ['fr', 'en', 'de', 'es'];
 const gameOptions = ['League of Legends', 'Valorant', 'CS:GO', 'Overwatch', 'Dofus', 'World of Warcraft'];
-const roleOptions = ['Controlleur', 'Duelliste', 'Initiateur', 'Sentinelle'];
+const roleOptions = ['Top', 'Jungler', 'Mid', 'ADC', 'Support'];
 const moodOptions = ['Tryhard', 'Chill', 'Fun'];
 
 type ProfileForm = {

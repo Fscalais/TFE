@@ -16,6 +16,23 @@ function Register() {
     setErrors([]);
     setServerError('');
 
+    // Validation frontend minimale
+    const validationErrors = [];
+    if (!email.trim()) validationErrors.push('L\'email est obligatoire');
+    // Simple regex pour email valide
+    else if (!/^\S+@\S+\.\S+$/.test(email)) validationErrors.push('Email invalide');
+
+    if (!username.trim()) validationErrors.push('Le pseudo est obligatoire');
+
+    if (!password) validationErrors.push('Le mot de passe est obligatoire');
+    else if (password.length < 8)
+      validationErrors.push('Le mot de passe doit contenir au moins 8 caractères');
+
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     try {
       await api.post('/auth/register', {
         email,
@@ -84,6 +101,7 @@ function Register() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={8}
         />
         <button
           type="submit"
@@ -97,3 +115,4 @@ function Register() {
 }
 
 export default Register;
+

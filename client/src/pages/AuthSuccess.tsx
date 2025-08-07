@@ -1,4 +1,3 @@
-// src/pages/AuthSuccess.tsx
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -33,3 +32,4 @@ export default function AuthSuccess() {
 
   return <div>Connexion en cours...</div>;
 }
+

@@ -13,6 +13,9 @@ import Match from './pages/Match';
 import Home from './pages/Home';
 import Legal from './pages/Legal';
 import AuthSuccess from './pages/AuthSuccess';
+import Scrims from './pages/Scrims';
+import CreateScrim from './pages/CreateScrim';
+import ScrimDetail from './pages/ScrimDetails';
 
 function App() {
   return (
@@ -25,6 +28,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/auth/success" element={<AuthSuccess />} />
+          <Route path="/scrims/:id" element={<ScrimDetail />} />
 
           <Route 
             path="/profile" 
@@ -33,6 +37,23 @@ function App() {
                 <Profile />
               </PrivateRoute>
             } 
+          />
+          <Route 
+            path="/scrims" 
+            element={
+              <PrivateRoute>
+                <Scrims />
+              </PrivateRoute>
+            } 
+          />
+
+          <Route
+            path="/scrims/create"
+            element={
+              <PrivateRoute>
+                <CreateScrim />
+              </PrivateRoute>
+            }
           />
 
           <Route 

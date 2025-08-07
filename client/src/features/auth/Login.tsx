@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import GoogleLoginButton from '../../components/GoogleLoginButton';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -15,6 +14,18 @@ function Login() {
     e.preventDefault();
     setError('');
 
+    if (!email.trim() || !password) {
+      setError('Email et mot de passe sont obligatoires');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+
+    console.log('Tentative login avec email:', email);
+
     try {
       const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
@@ -25,13 +36,22 @@ function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Échec de la connexion');
+        console.error('Erreur backend login:', data);
+        // Affiche message d’erreur si présent dans data.message ou dans data.errors
+        if (data.message) setError(data.message);
+        else if (data.errors && Array.isArray(data.errors)) {
+          setError(data.errors.map((e: any) => e.msg).join(', '));
+        } else {
+          setError('Échec de la connexion');
+        }
+        return;
       }
 
       login(data.user, data.token);
       navigate('/profile');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Erreur lors du fetch login:', err);
+      setError('Erreur réseau ou serveur');
     }
   };
 
@@ -58,7 +78,10 @@ function Login() {
           className="w-full p-2 border rounded"
           required
         />
-        <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500">
+        <button
+          type="submit"
+          className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500"
+        >
           Se connecter
         </button>
       </form>
@@ -69,11 +92,6 @@ function Login() {
           Inscription
         </Link>
       </p>
-
-      {/* Bouton de connexion Google */}
-      <div className="mt-6 flex justify-center">
-        <GoogleLoginButton />
-      </div>
     </div>
   );
 }
