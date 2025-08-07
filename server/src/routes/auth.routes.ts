@@ -8,7 +8,7 @@ const router = express.Router();
 // Limiteur pour éviter brute-force sur login
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // max 5 tentatives
+  max: 20, // max 5 tentatives
   message: 'Trop de tentatives de connexion. Veuillez réessayer plus tard.',
 });
 

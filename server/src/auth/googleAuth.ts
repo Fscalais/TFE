@@ -1,23 +1,29 @@
-// src/passport/google.strategy.ts
+// src/auth/googleAuth.ts
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GoogleStrategy, Profile, VerifyCallback } from 'passport-google-oauth20';
 import User from '../models/user.model';
 import jwt from 'jsonwebtoken';
 
-passport.serializeUser((user, done) => {
-  done(null, user);
+passport.serializeUser((user: any, done) => {
+  done(null, user._id.toString());
 });
-passport.deserializeUser((obj: any, done) => {
-  done(null, obj);
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
 });
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID!,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   callbackURL: "http://localhost:5000/auth/google/callback",
-}, async (accessToken, refreshToken, profile, done) => {
+},
+async (accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
   try {
-    // Chercher utilisateur par googleId
     let user = await User.findOne({ googleId: profile.id });
     if (!user) {
       user = await User.create({
@@ -26,12 +32,8 @@ passport.use(new GoogleStrategy({
         email: profile.emails?.[0].value,
       });
     }
-
-    // Générer JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-
-    // Passer user et token à req.user dans callback
-    done(null, { user, token });
+    // Ici, on ne passe QUE l'utilisateur mongoose
+    done(null, user);
   } catch (error) {
     done(error, false);
   }

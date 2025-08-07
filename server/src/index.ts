@@ -15,7 +15,8 @@ import userRoutes from './routes/user.routes';
 import teamRoutes from './routes/team.routes';
 import riotRoutes from './routes/riot.routes';
 import matchmakingRoutes from './routes/matchmaking.routes';
-import User from './models/user.model'; // Assure-toi que ce chemin est correct
+import User from './models/user.model';
+import scrimRoutes from './routes/scrim.routes';
 
 dotenv.config();
 
@@ -30,14 +31,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// IMPORTANT : On supprime l'utilisation de session ici, car on utilise JWT
-// Si tu veux absolument garder session pour autre chose, adapte, mais pour JWT elle n'est pas nécessaire
-// app.use(session({
-//   secret: 'secret-session-key',
-//   resave: false,
-//   saveUninitialized: true,
-// }));
+app.use('/api', scrimRoutes);
 
 // --- Passport Google OAuth config ---
 passport.serializeUser((user, done) => {
@@ -68,7 +62,7 @@ async (accessToken, refreshToken, profile, done) => {
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     // Passer user et token à req.user dans callback
-    done(null, { user, token });
+    done(null, user);
   } catch (error) {
     done(error, false);
   }
@@ -86,7 +80,8 @@ app.get('/auth/google',
 app.get('/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/' }),
   (req, res) => {
-    const { token } = req.user as any;
+    const user = req.user as any;
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
     // Redirige vers frontend avec le token JWT dans l'URL
     res.redirect(`http://localhost:3000/auth/success?token=${token}`);
   }

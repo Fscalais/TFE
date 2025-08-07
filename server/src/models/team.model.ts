@@ -9,3 +9,4 @@ const teamSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 export default mongoose.model('Team', teamSchema);
+
