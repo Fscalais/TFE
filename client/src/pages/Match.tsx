@@ -224,11 +224,8 @@ function Match() {
         </div>
       )}
 
-      {roomId && matchTeam && (
+      {roomId && (
         <ChatRoom
-          socket={socket}
-          roomId={roomId}
-          userId={userId!}
           discordInvite={discordInvite}
           onLeave={leaveChat}
         />

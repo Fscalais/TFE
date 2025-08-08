@@ -59,7 +59,7 @@ async (accessToken, refreshToken, profile, done) => {
     }
 
     // Générer JWT
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id.toString() }, JWT_SECRET, { expiresIn: '7d' });
 
     // Passer user et token à req.user dans callback
     done(null, user);
@@ -81,11 +81,13 @@ app.get('/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/' }),
   (req, res) => {
     const user = req.user as any;
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-    // Redirige vers frontend avec le token JWT dans l'URL
+    console.log("User Google OAuth:", user);
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    console.log("JWT token generated:", token);
     res.redirect(`http://localhost:3000/auth/success?token=${token}`);
   }
 );
+
 
 // Supprimer la route /auth/user car elle dépend des sessions et n'est plus utilisée avec JWT
 // app.get('/auth/user', (req, res) => {

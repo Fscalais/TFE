@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import GoogleLoginButton from '../../components/GoogleLoginButton';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -24,8 +25,6 @@ function Login() {
       return;
     }
 
-    console.log('Tentative login avec email:', email);
-
     try {
       const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
@@ -36,8 +35,6 @@ function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error('Erreur backend login:', data);
-        // Affiche message d’erreur si présent dans data.message ou dans data.errors
         if (data.message) setError(data.message);
         else if (data.errors && Array.isArray(data.errors)) {
           setError(data.errors.map((e: any) => e.msg).join(', '));
@@ -49,8 +46,7 @@ function Login() {
 
       login(data.user, data.token);
       navigate('/profile');
-    } catch (err: any) {
-      console.error('Erreur lors du fetch login:', err);
+    } catch (err) {
       setError('Erreur réseau ou serveur');
     }
   };
@@ -86,6 +82,10 @@ function Login() {
         </button>
       </form>
 
+      <div className="mt-6 flex justify-center">
+        <GoogleLoginButton />
+      </div>
+
       <p className="text-center mt-4 text-sm">
         Pas encore de compte ?{' '}
         <Link to="/register" className="text-indigo-600 hover:underline">
@@ -97,3 +97,5 @@ function Login() {
 }
 
 export default Login;
+
+

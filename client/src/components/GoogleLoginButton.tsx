@@ -1,11 +1,6 @@
-export default function GoogleLoginButton() {
-  // Supprimer ou commenter ce useEffect qui appelle /auth/user
-  // useEffect(() => {
-  //   axios.get('http://localhost:5000/auth/user', { withCredentials: true })
-  //     .then(res => setUser(res.data.user))
-  //     .catch(() => setUser(null));
-  // }, []);
+import React from 'react';
 
+export default function GoogleLoginButton() {
   const loginWithGoogle = () => {
     window.open('http://localhost:5000/auth/google', '_self');
   };

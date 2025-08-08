@@ -44,14 +44,18 @@ const Scrims: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [communityRes, myRes, teamsRes] = await Promise.all([
+        const [teamsRes, communityRes, myRes] = await Promise.all([
+          api.get('/teams'),
           api.get('/scrims'),
           api.get('/scrims/my'),
-          api.get('/teams')
         ]);
-        setCommunityScrims(communityRes.data);
+        const userTeams: Team[] = teamsRes.data;
+        setTeams(userTeams);
+        const filteredCommunityScrims = communityRes.data.filter(
+          (scrim: Scrim) => !userTeams.some(team => team._id === scrim.teamA._id)
+        );
+        setCommunityScrims(filteredCommunityScrims);
         setMyScrims(myRes.data);
-        setTeams(teamsRes.data);
       } catch (err) {
         setError('Erreur lors du chargement des données');
       } finally {
@@ -83,7 +87,10 @@ const Scrims: React.FC = () => {
       setRequestSuccess('Demande envoyée avec succès !');
       // Refresh scrims communauté
       const communityRes = await api.get('/scrims');
-      setCommunityScrims(communityRes.data);
+      const filteredCommunityScrims = communityRes.data.filter(
+        (scrim: Scrim) => !teams.some(team => team._id === scrim.teamA._id)
+      );
+      setCommunityScrims(filteredCommunityScrims);
       setModalOpen(false);
     } catch (error: any) {
       setRequestError(error.response?.data?.message || 'Erreur lors de la demande');

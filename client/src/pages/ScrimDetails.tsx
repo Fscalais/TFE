@@ -36,7 +36,6 @@ const ScrimDetail: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Charger les infos scrim
   useEffect(() => {
     const fetchScrim = async () => {
       setLoadingScrim(true);
@@ -60,7 +59,6 @@ const ScrimDetail: React.FC = () => {
     if (id) fetchScrim();
   }, [id]);
 
-  // Charger les demandes
   const fetchRequests = async () => {
     if (!id) return;
     setLoadingRequests(true);
@@ -81,26 +79,25 @@ const ScrimDetail: React.FC = () => {
     }
   }, [scrim]);
 
-  // Accepter ou refuser une demande
   const handleResponse = async (requestId: string, action: 'accept' | 'reject') => {
     if (!id) return;
     setRequestError(null);
     setRequestSuccess(null);
+
+    if (action === 'accept' && scrim?.teamB) {
+      const confirmed = window.confirm(
+        'Une équipe adverse est déjà validée. Voulez-vous la remplacer par cette nouvelle équipe ?'
+      );
+      if (!confirmed) return;
+    }
+
     try {
       await api.post(`/scrims/${id}/respond`, { requestId, action });
       setRequestSuccess(`Demande ${action}ée avec succès.`);
-      // Recharger demandes et scrim pour rafraîchir statut
       fetchRequests();
-
-      // Aussi recharger scrim (pour maj teamB et statut)
       const res = await api.get('/scrims/my');
       const foundScrim = res.data.find((s: Scrim) => s._id === id);
       setScrim(foundScrim || null);
-
-      // Si accepté, on peut rediriger vers page match par exemple, ou juste afficher
-      if (action === 'accept') {
-        // navigate(`/match/${id}`); // si tu as une page match
-      }
     } catch {
       setRequestError(`Erreur lors de la mise à jour de la demande.`);
     }
@@ -175,3 +172,4 @@ const ScrimDetail: React.FC = () => {
 };
 
 export default ScrimDetail;
+
