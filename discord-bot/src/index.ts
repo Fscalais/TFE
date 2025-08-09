@@ -17,7 +17,7 @@ app.use(express.json());
 const PORT = 3001;
 
 // 1h d'inactivité
-const INACTIVE_MS = 15 * 60 * 1000;
+const INACTIVE_MS = 1 * 60 * 1000;
 
 // ⚠️ Intents ajoutés: GuildMessages + MessageContent pour capter les messages
 const client = new Client({

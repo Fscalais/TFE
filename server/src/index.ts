@@ -27,11 +27,10 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 // --- Middleware ---
 app.use(
   cors({
-    origin: 'http://localhost:3000', // frontend React
+    origin: 'http://localhost:3000',
     credentials: true,
   })
 );
-
 app.use(express.json());
 app.use('/api', scrimRoutes);
 
@@ -52,7 +51,6 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // Chercher utilisateur par googleId
         let user = await User.findOne({ googleId: profile.id });
         if (!user) {
           user = await User.create({
@@ -61,13 +59,7 @@ passport.use(
             email: profile.emails?.[0].value,
           });
         }
-
-        // Générer JWT
-        const token = jwt.sign({ id: user._id.toString() }, JWT_SECRET, {
-          expiresIn: '7d',
-        });
-
-        // Passer user et token à req.user dans callback
+        const token = jwt.sign({ id: user._id.toString() }, JWT_SECRET, { expiresIn: '7d' });
         done(null, user);
       } catch (error) {
         done(error, false);
@@ -77,25 +69,20 @@ passport.use(
 );
 
 app.use(passport.initialize());
-// Ne pas utiliser passport.session() car on ne gère plus les sessions express
-// app.use(passport.session());
 
-// --- Routes Google OAuth ---
+// OAuth routes
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
 app.get(
   '/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/' }),
   (req, res) => {
     const user = req.user as any;
-    console.log('User Google OAuth:', user);
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    console.log('JWT token generated:', token);
     res.redirect(`http://localhost:3000/auth/success?token=${token}`);
   }
 );
 
-// --- Autres routes API ---
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
@@ -103,45 +90,58 @@ app.use('/api/riot', riotRoutes);
 app.use('/matchmaking', matchmakingRoutes);
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-  },
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
 /* ===========================
    Matchmaking multi-critères
    =========================== */
 
-// Types de critères envoyés par le client
+// rangs + helpers
+const RANKS = [
+  'Fer',
+  'Bronze',
+  'Argent',
+  'Or',
+  'Platine',
+  'Émeraude',
+  'Diamant',
+  'Maître',
+  'GrandMaître',
+  'Challenger',
+] as const;
+const rankIdx = (r: string) => RANKS.indexOf(r as any);
+const ranksClose = (a: string, b: string, tolerance = 1) =>
+  Math.abs(rankIdx(a) - rankIdx(b)) <= tolerance; // même rang ou +/-1
+
 interface SearchCriteria {
   socketId: string;
   userId: string;
-  languages: string[]; // >= 1
-  roles: string[];     // 1..2
-  moods: string[];     // >= 1
-  teamSize: number;    // nb de coéquipiers à trouver
+  languages: string[];
+  roles: string[];
+  moods: string[];
+  teamSize: number;
+  rank: string; // NEW
 }
 
 const waitingPlayers: SearchCriteria[] = [];
 
-// helpers
 const intersects = (a: string[], b: string[]) => a.some((x) => b.includes(x));
 const pickAvailableRole = (roles: string[], used: Set<string>) =>
   roles.find((r) => !used.has(r)) || null;
 
-// Essaie de créer une équipe valide à partir de la file d'attente
 function tryMatchPlayers() {
   if (waitingPlayers.length === 0) return null;
 
-  // on seed avec le premier en file
   const seed = waitingPlayers[0];
   const totalTeamSize = seed.teamSize + 1;
 
-  // pré-filtre: langue et mood en commun
   const candidates = waitingPlayers.filter(
-    (p) => intersects(p.languages, seed.languages) && intersects(p.moods, seed.moods)
+    (p) =>
+      intersects(p.languages, seed.languages) &&
+      intersects(p.moods, seed.moods) &&
+      ranksClose(p.rank, seed.rank, 1) // tolérance +/-1
   );
+
   if (candidates.length < totalTeamSize) return null;
 
   const team: SearchCriteria[] = [];
@@ -157,18 +157,15 @@ function tryMatchPlayers() {
   }
 
   if (team.length === totalTeamSize) {
-    // retirer les joueurs matchés de la queue
     for (const p of team) {
       const idx = waitingPlayers.findIndex((w) => w.socketId === p.socketId);
       if (idx !== -1) waitingPlayers.splice(idx, 1);
     }
     return team;
   }
-
   return null;
 }
 
-// Création d'un salon Discord (si ton service tourne sur 3001)
 async function createDiscordRoom(roomId: string): Promise<string | null> {
   try {
     const res = await axios.post('http://localhost:3001/create-room', { roomId });
@@ -183,19 +180,14 @@ io.on('connection', (socket) => {
   console.log(`Client connecté : ${socket.id}`);
 
   socket.on('startSearch', async (criteria: Omit<SearchCriteria, 'socketId'>) => {
-    console.log('Recherche démarrée par', socket.id, criteria);
-
-    // Validation rapide
+    // validation
     if (
       !criteria?.userId ||
-      !Array.isArray(criteria.languages) ||
-      criteria.languages.length === 0 ||
-      !Array.isArray(criteria.roles) ||
-      criteria.roles.length === 0 ||
-      criteria.roles.length > 2 ||
-      !Array.isArray(criteria.moods) ||
-      criteria.moods.length === 0 ||
-      typeof criteria.teamSize !== 'number'
+      !Array.isArray(criteria.languages) || criteria.languages.length === 0 ||
+      !Array.isArray(criteria.roles)     || criteria.roles.length === 0 || criteria.roles.length > 2 ||
+      !Array.isArray(criteria.moods)     || criteria.moods.length === 0 ||
+      typeof criteria.teamSize !== 'number' ||
+      !RANKS.includes(criteria.rank as any)
     ) {
       console.warn('Critères invalides:', criteria);
       return;
@@ -206,7 +198,7 @@ io.on('connection', (socket) => {
     const matchedTeam = tryMatchPlayers();
     if (matchedTeam) {
       const roomId = 'match_' + Math.random().toString(36).substring(2, 10);
-      const discordInvite = await createDiscordRoom(roomId); // ou null si tu ne veux pas Discord
+      const discordInvite = await createDiscordRoom(roomId); // ou null si pas de bot
 
       for (const player of matchedTeam) {
         io.to(player.socketId).emit('matchFound', {
@@ -216,6 +208,7 @@ io.on('connection', (socket) => {
             roles: p.roles,
             languages: p.languages,
             moods: p.moods,
+            rank: p.rank,
           })),
           discordInvite,
         });
@@ -224,21 +217,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('stopSearch', () => {
-    console.log(`Recherche arrêtée par ${socket.id}`);
     const index = waitingPlayers.findIndex((p) => p.socketId === socket.id);
-    if (index !== -1) {
-      waitingPlayers.splice(index, 1);
-      console.log(`Joueur ${socket.id} retiré de la file d'attente`);
-    }
+    if (index !== -1) waitingPlayers.splice(index, 1);
   });
 
   socket.on('disconnect', () => {
-    console.log(`Client déconnecté : ${socket.id}`);
     const index = waitingPlayers.findIndex((p) => p.socketId === socket.id);
-    if (index !== -1) {
-      waitingPlayers.splice(index, 1);
-      console.log(`Joueur ${socket.id} retiré de la file d'attente`);
-    }
+    if (index !== -1) waitingPlayers.splice(index, 1);
   });
 });
 

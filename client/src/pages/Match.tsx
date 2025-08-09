@@ -18,6 +18,18 @@ const roles = ["Top", "Jungle", "Mid", "ADC", "Support"];
 const moods = ["Casual", "Compétitif", "Fun", "Tryhard"];
 const languages = ["Français", "Anglais", "Espagnol", "Allemand"];
 const teamSizes = [1, 2, 3, 4];
+const ranks = [
+  "Fer",
+  "Bronze",
+  "Argent",
+  "Or",
+  "Platine",
+  "Émeraude",
+  "Diamant",
+  "Maître",
+  "GrandMaître",
+  "Challenger",
+];
 
 const socket: Socket = io("http://localhost:5000"); // adapte si besoin
 
@@ -25,10 +37,11 @@ function Match() {
   const { user } = useAuth();
   const userId = user?.id;
 
-  // --- NEW: multi-criteria ---
+  // --- Multi-criteria ---
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // max 2
   const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+  const [selectedRank, setSelectedRank] = useState<string>(""); // NEW
   const [teamSize, setTeamSize] = useState<number>(1);
 
   const [searching, setSearching] = useState(false);
@@ -38,6 +51,7 @@ function Match() {
       roles: string[];
       languages: string[];
       moods: string[];
+      rank?: string;
     }[] | null
   >(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -75,6 +89,7 @@ function Match() {
     if (selectedRoles.length === 0 || selectedRoles.length > 2)
       return alert("Choisis 1 à 2 rôles maximum.");
     if (selectedMoods.length === 0) return alert("Choisis au moins un mood.");
+    if (!selectedRank) return alert("Choisis un rang.");
 
     setSearching(true);
     setMatchTeam(null);
@@ -87,6 +102,7 @@ function Match() {
       roles: selectedRoles,
       moods: selectedMoods,
       teamSize,
+      rank: selectedRank, // NEW
     });
   };
 
@@ -105,7 +121,6 @@ function Match() {
 
     socket.on("matchFound", (data) => {
       console.log("Match trouvé !", data);
-      // data.team doit contenir roles[], languages[], moods[]
       setMatchTeam(data.team);
       setRoomId(data.roomId);
       setDiscordInvite(data.discordInvite || null);
@@ -256,6 +271,32 @@ function Match() {
                   </div>
                 </div>
 
+                {/* Rank */}
+                <div>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
+                    Rang
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {ranks.map((rk) => {
+                      const active = selectedRank === rk;
+                      return (
+                        <button
+                          type="button"
+                          key={rk}
+                          onClick={() => setSelectedRank(rk)}
+                          className={`px-3 py-2 rounded-xl text-sm border transition ${
+                            active
+                              ? "bg-indigo-500 text-white border-indigo-400"
+                              : "bg-slate-900/60 text-indigo-100 border-white/15 hover:border-white/30"
+                          }`}
+                        >
+                          {rk}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Team size */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
@@ -291,6 +332,9 @@ function Match() {
                   </span>
                   <span className="px-2 py-1 rounded bg-white/10">
                     Moods: {selectedMoods.join(", ") || "—"}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-white/10">
+                    Rang: {selectedRank || "—"}
                   </span>
                   <span className="px-2 py-1 rounded bg-white/10">
                     Coéquipiers: {teamSize}
@@ -365,7 +409,7 @@ function Match() {
                         {player.roles?.join(", ")}
                       </span>{" "}
                       · Langues: {player.languages?.join(", ")} · Moods:{" "}
-                      {player.moods?.join(", ")}
+                      {player.moods?.join(", ")} · Rang: {player.rank ?? "—"}
                     </div>
                   </li>
                 ))}
@@ -380,6 +424,7 @@ function Match() {
                     setSelectedLanguages([]);
                     setSelectedRoles([]);
                     setSelectedMoods([]);
+                    setSelectedRank(""); // reset
                     setTeamSize(1);
                     setDiscordInvite(null);
                   }}
@@ -407,7 +452,3 @@ function Match() {
 }
 
 export default Match;
-
-
-
-

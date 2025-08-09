@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
   roles: [{ type: String, enum: ['top', 'jungle', 'mid', 'adc', 'support'] }],
   age:             Number,
   mood:            [String],
-  rank:            String,
+  rank: { type: String, enum: ["Fer","Bronze","Argent","Or","Platine","Émeraude","Diamant","Maître","GrandMaître","Challenger"] },
   bio:             String,
 }, { timestamps: true });
 
