@@ -1,6 +1,6 @@
-// client/src/pages/TeamCreate.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const TeamCreate = () => {
   const [name, setName] = useState('');
@@ -10,19 +10,12 @@ const TeamCreate = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    const res = await fetch('http://localhost:5000/api/teams', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name, description }),
-    });
-
-    if (res.ok) {
+    try {
+      await api.post('/teams', { name, description });
       setMessage('✅ Équipe créée avec succès !');
       setTimeout(() => navigate('/teams'), 1000);
-    } else {
-      const errorData = await res.json();
-      setMessage(errorData.message || 'Erreur serveur');
+    } catch (err: any) {
+      setMessage(err?.response?.data?.message || 'Erreur serveur');
     }
   };
 
@@ -57,3 +50,4 @@ const TeamCreate = () => {
 };
 
 export default TeamCreate;
+

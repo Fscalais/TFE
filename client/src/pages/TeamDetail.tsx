@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 type Member = {
   _id: string;
@@ -32,13 +33,11 @@ const TeamDetail = () => {
 
   useEffect(() => {
     const fetchTeam = async () => {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/teams/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const { data } = await api.get(`/teams/${id}`);
         setTeam(data);
+      } catch (err) {
+        console.error(err);
       }
     };
     fetchTeam();
@@ -46,25 +45,15 @@ const TeamDetail = () => {
 
   const handleInvite = async () => {
     if (!inviteUsername.trim()) return;
-
-    const token = localStorage.getItem('token');
-    const res = await fetch(`http://localhost:5000/api/teams/${id}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ username: inviteUsername }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-        setMessage('Invitation envoyée !');
-        setInviteUsername('');
-    } else {
-        setMessage(data.message || 'Erreur lors de l\'invitation');
+    try {
+      await api.post(`/teams/${id}/invite`, { username: inviteUsername });
+      setMessage('Invitation envoyée !');
+      setInviteUsername('');
+    } catch (err: any) {
+      setMessage(err?.response?.data?.message || 'Erreur lors de l’invitation');
     }
-    };
+  };
 
-  // Quand creator clique sur quitter, on affiche la liste pour choisir nouveau creator
   const onCreatorLeaveClick = () => {
     if (!team) return;
     if (team.members.length <= 1) {
@@ -74,7 +63,6 @@ const TeamDetail = () => {
     setShowTransfer(true);
   };
 
-  // Envoyer la demande transfert creator puis quitter l'équipe
   const handleConfirmLeave = async () => {
     if (!team || !user) return;
 
@@ -83,33 +71,13 @@ const TeamDetail = () => {
       return;
     }
 
-    const token = localStorage.getItem('token');
-
-    // Transfert du creator
-    const resChangeCreator = await fetch(`http://localhost:5000/api/teams/${id}/transfer-creator`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ newCreatorId }),
-    });
-
-    if (!resChangeCreator.ok) {
-      const errData = await resChangeCreator.json();
-      alert('Erreur lors du transfert du créateur : ' + (errData.message || 'Erreur inconnue'));
-      return;
-    }
-
-    // Quitter l'équipe
-    const resLeave = await fetch(`http://localhost:5000/api/teams/${id}/leave`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (resLeave.ok) {
-      setMessage('Vous avez quitté l\'équipe.');
-      setTeam(null); // ou redirige si besoin
-    } else {
-      const errorData = await resLeave.json();
-      setMessage(errorData.message || 'Erreur lors du départ de l\'équipe');
+    try {
+      await api.post(`/teams/${id}/transfer-creator`, { newCreatorId });
+      await api.post(`/teams/${id}/leave`);
+      setMessage('Vous avez quitté l’équipe.');
+      setTeam(null);
+    } catch (err: any) {
+      setMessage(err?.response?.data?.message || 'Erreur lors du départ de l’équipe');
     }
     setShowTransfer(false);
   };
@@ -119,7 +87,6 @@ const TeamDetail = () => {
     if (user._id === team.creator._id) {
       onCreatorLeaveClick();
     } else {
-      // Quitter normalement (non creator)
       handleConfirmLeave();
     }
   };
@@ -162,7 +129,6 @@ const TeamDetail = () => {
         </button>
       </div>
 
-      {/* Popup transfert creator */}
       {showTransfer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow max-w-md w-full">

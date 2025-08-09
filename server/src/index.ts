@@ -92,7 +92,6 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/riot', riotRoutes);
 app.use('/matchmaking', matchmakingRoutes);
 
-// petite route de santé
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);

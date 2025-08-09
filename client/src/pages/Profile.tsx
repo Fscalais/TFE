@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 type User = {
   username: string;
@@ -61,6 +62,8 @@ const Spinner = () => (
   </div>
 );
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Profile = () => {
   const [profile, setProfile] = useState<User | null>(null);
   const [riotData, setRiotData] = useState<{
@@ -89,21 +92,15 @@ const Profile = () => {
     fetchVersion();
   }, []);
 
-  useEffect(() => {
+   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/users/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const { data } = await api.get('/users/me');
         setProfile(data);
 
         if (data.riotSummonerName) {
           try {
-            const riotRes = await fetch(
-              `http://localhost:5000/api/riot/data/${encodeURIComponent(data.riotSummonerName)}`
-            );
+            const riotRes = await fetch(`${API_URL}/api/riot/data/${encodeURIComponent(data.riotSummonerName)}`);
             if (!riotRes.ok) throw new Error('Erreur récupération données Riot');
             const riotJson = await riotRes.json();
             setRiotData(riotJson);
@@ -112,30 +109,31 @@ const Profile = () => {
             setError(err.message || 'Erreur récupération données Riot');
           }
         }
+      } catch (e: any) {
+        setError(e?.response?.data?.message || 'Erreur chargement profil');
       }
     };
 
     fetchProfile();
   }, []);
 
+
   useEffect(() => {
     const fetchMastery = async (puuid: string) => {
       setLoadingMasteries(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/riot/mastery/${puuid}`);
-        if (!res.ok) throw new Error("Erreur récupération maîtrise");
+        const res = await fetch(`${API_URL}/api/riot/mastery/${puuid}`);
+        if (!res.ok) throw new Error('Erreur récupération maîtrise');
         const masteryData = await res.json();
         setMasteries(masteryData);
       } catch (err: any) {
-        setError(err.message || "Erreur récupération maîtrise");
+        setError(err.message || 'Erreur récupération maîtrise');
       } finally {
         setLoadingMasteries(false);
       }
     };
 
-    if (riotData?.puuid) {
-      fetchMastery(riotData.puuid);
-    }
+    if (riotData?.puuid) fetchMastery(riotData.puuid);
   }, [riotData?.puuid]);
 
   const getChampionIconUrl = (championName: string) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function AuthSuccess() {
   const navigate = useNavigate();
@@ -10,7 +11,6 @@ export default function AuthSuccess() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-    console.log("Token from URL:", token);
 
     if (!token) {
       setError('Token non trouvé dans l’URL');
@@ -18,24 +18,19 @@ export default function AuthSuccess() {
       return;
     }
 
-    fetch('http://localhost:5000/api/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Erreur ${res.status} lors de la récupération du profil`);
-        }
-        return res.json();
-      })
-      .then(user => {
+    (async () => {
+      try {
+        const { data: user } = await api.get('/users/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         login(user, token);
         navigate('/profile');
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Erreur AuthSuccess:', err);
         setError('Token invalide ou expiré. Veuillez vous reconnecter.');
         setTimeout(() => navigate('/login'), 3000);
-      });
+      }
+    })();
   }, [login, navigate]);
 
   if (error) {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
+import api from '../services/api';
 
 type AuthContextType = {
   user: User | null;
@@ -23,17 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const res = await fetch('http://localhost:5000/api/users/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const userData = await res.json();
-          setUser(userData);
-        } else {
-          localStorage.removeItem('token');
-          setUser(null);
-        }
-      } catch {
+        const { data } = await api.get<User>('/users/me');
+        setUser(data);
+      } catch (err: any) {
         localStorage.removeItem('token');
         setUser(null);
       } finally {

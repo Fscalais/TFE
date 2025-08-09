@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import api from '../services/api';
 
 type Team = {
   _id: string;
@@ -13,16 +14,11 @@ const Invitations = () => {
   const [error, setError] = useState('');
 
   const fetchInvitations = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:5000/api/teams/invitations', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Erreur lors du chargement des invitations');
-      const data = await res.json();
+      const { data } = await api.get('/teams/invitations'); // ✅
       setInvitations(data);
     } catch (err: any) {
-      setError(err.message || 'Erreur inconnue');
+      setError(err?.response?.data?.message || 'Erreur lors du chargement des invitations');
     } finally {
       setLoading(false);
     }
@@ -33,18 +29,11 @@ const Invitations = () => {
   }, []);
 
   const respondInvitation = async (teamId: string, accept: boolean) => {
-    const token = localStorage.getItem('token');
-    const url = `http://localhost:5000/api/teams/${teamId}/${accept ? 'accept' : 'decline'}`;
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Erreur lors de la réponse à l’invitation');
-      // Rafraîchir la liste
+      await api.post(`/teams/${teamId}/${accept ? 'accept' : 'decline'}`); // ✅
       fetchInvitations();
     } catch (err: any) {
-      alert(err.message || 'Erreur inconnue');
+      alert(err?.response?.data?.message || 'Erreur lors de la réponse à l’invitation');
     }
   };
 

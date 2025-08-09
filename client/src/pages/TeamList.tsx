@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
 
 type Team = {
   _id: string;
@@ -15,16 +16,11 @@ const TeamList = () => {
 
   useEffect(() => {
     const fetchTeams = async () => {
-      const token = localStorage.getItem('token');
       try {
-        const res = await fetch('http://localhost:5000/api/teams', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Erreur lors du chargement des équipes');
-        const data = await res.json();
+        const { data } = await api.get('/teams'); // ✅
         setTeams(data);
       } catch (err: any) {
-        setError(err.message || 'Erreur inconnue');
+        setError(err?.response?.data?.message || 'Erreur lors du chargement des équipes');
       } finally {
         setLoading(false);
       }

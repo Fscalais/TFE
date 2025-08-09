@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const languageOptions = ['fr', 'en', 'de', 'es'];
 const gameOptions = ['League of Legends', 'Valorant', 'CS:GO', 'Overwatch', 'Dofus', 'World of Warcraft'];
@@ -37,25 +38,23 @@ const EditProfile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/users/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      setForm({
-        username: data.username || '',
-        riotSummonerName: data.riotSummonerName || '',
-        location: data.location || '',
-        age: data.age || 8,
-        bio: data.bio || '',
-        rank: data.rank || '',
-        mood: data.mood || [],
-        languages: data.languages || [],
-        games: data.games || [],
-        roles: data.roles || [],
-      });
+      try {
+        const { data } = await api.get('/users/me');
+        setForm({
+          username: data.username || '',
+          riotSummonerName: data.riotSummonerName || '',
+          location: data.location || '',
+          age: data.age || 8,
+          bio: data.bio || '',
+          rank: data.rank || '',
+          mood: data.mood || [],
+          languages: data.languages || [],
+          games: data.games || [],
+          roles: data.roles || [],
+        });
+      } catch (err: any) {
+        setMessage(err?.response?.data?.message || 'Erreur chargement profil');
+      }
     };
 
     fetchProfile();
@@ -75,31 +74,19 @@ const EditProfile = () => {
       const prevArray = prev[field] as string[];
       return {
         ...prev,
-        [field]: checked
-          ? [...prevArray, value]
-          : prevArray.filter(item => item !== value),
+        [field]: checked ? [...prevArray, value] : prevArray.filter(item => item !== value),
       };
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    const res = await fetch('http://localhost:5000/api/users/me', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(form),
-    });
-
-    if (res.ok) {
+    try {
+      await api.put('/users/me', form);
       setMessage('✅ Profil mis à jour !');
       setTimeout(() => navigate('/profile'), 1000);
-    } else {
-      const errorData = await res.json();
-      setMessage(errorData.message || 'Erreur serveur');
+    } catch (err: any) {
+      setMessage(err?.response?.data?.message || 'Erreur serveur');
     }
   };
 
@@ -236,10 +223,7 @@ const EditProfile = () => {
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500"
-        >
+        <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500">
           Sauvegarder
         </button>
 
