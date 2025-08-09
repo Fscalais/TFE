@@ -2,6 +2,17 @@ import React, { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import ChatRoom from "../components/ChatRoom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Languages,
+  Gamepad2,
+  Users,
+  Smile,
+  TimerReset,
+  Search,
+  XCircle,
+  RefreshCw,
+} from "lucide-react";
 
 const roles = ["Top", "Jungle", "Mid", "ADC", "Support"];
 const moods = ["Casual", "Compétitif", "Fun", "Tryhard"];
@@ -14,13 +25,20 @@ function Match() {
   const { user } = useAuth();
   const userId = user?.id;
 
-  const [language, setLanguage] = useState<string>("");
-  const [role, setRole] = useState<string>(roles[0]);
-  const [mood, setMood] = useState<string>(moods[0]);
+  // --- NEW: multi-criteria ---
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // max 2
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
   const [teamSize, setTeamSize] = useState<number>(1);
+
   const [searching, setSearching] = useState(false);
   const [matchTeam, setMatchTeam] = useState<
-    { userId: string; role: string; language: string; mood: string }[] | null
+    {
+      userId: string;
+      roles: string[];
+      languages: string[];
+      moods: string[];
+    }[] | null
   >(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [discordInvite, setDiscordInvite] = useState<string | null>(null);
@@ -35,16 +53,11 @@ function Match() {
         setSearchTime((prev) => prev + 1);
       }, 1000);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [searching]);
 
@@ -57,14 +70,11 @@ function Match() {
   };
 
   const startSearch = () => {
-    if (!userId) {
-      alert("Tu dois être connecté pour lancer une recherche.");
-      return;
-    }
-    if (!language) {
-      alert("Merci de choisir une langue.");
-      return;
-    }
+    if (!userId) return alert("Tu dois être connecté pour lancer une recherche.");
+    if (selectedLanguages.length === 0) return alert("Choisis au moins une langue.");
+    if (selectedRoles.length === 0 || selectedRoles.length > 2)
+      return alert("Choisis 1 à 2 rôles maximum.");
+    if (selectedMoods.length === 0) return alert("Choisis au moins un mood.");
 
     setSearching(true);
     setMatchTeam(null);
@@ -73,9 +83,9 @@ function Match() {
 
     socket.emit("startSearch", {
       userId,
-      language,
-      role,
-      mood,
+      languages: selectedLanguages,
+      roles: selectedRoles,
+      moods: selectedMoods,
       teamSize,
     });
   };
@@ -95,9 +105,10 @@ function Match() {
 
     socket.on("matchFound", (data) => {
       console.log("Match trouvé !", data);
+      // data.team doit contenir roles[], languages[], moods[]
       setMatchTeam(data.team);
-      setRoomId(data.roomId); // ID de la room pour le chat
-      setDiscordInvite(data.discordInvite || null); // lien Discord
+      setRoomId(data.roomId);
+      setDiscordInvite(data.discordInvite || null);
       setSearching(false);
     });
 
@@ -122,146 +133,281 @@ function Match() {
     setDiscordInvite(null);
   };
 
+  const toggle = (
+    value: string,
+    set: React.Dispatch<React.SetStateAction<string[]>>,
+    limit?: number
+  ) => {
+    set((prev) => {
+      const has = prev.includes(value);
+      if (has) return prev.filter((v) => v !== value);
+      if (limit && prev.length >= limit) return prev; // keep as-is
+      return [...prev, value];
+    });
+  };
+
   return (
-    <div className="p-8 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-indigo-700 mb-4">
-        Recherche de coéquipiers
-      </h1>
-      <p className="mb-6">Système de matchmaking basé sur tes critères.</p>
-
-      {!searching && !matchTeam && !roomId && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            startSearch();
-          }}
-          className="space-y-4"
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-800">
+      <div className="w-full max-w-4xl px-4 py-10">
+        <motion.header
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 text-center"
         >
-          <div>
-            <label className="block mb-1 font-semibold">Langue :</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              required
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
+            Recherche de coéquipiers
+          </h1>
+          <p className="text-indigo-200/90 mt-2">
+            Système de matchmaking basé sur tes critères.
+          </p>
+        </motion.header>
+
+        <div className="grid md:grid-cols-2 gap-6 place-items-center">
+          {!searching && !matchTeam && !roomId && (
+            <motion.form
+              onSubmit={(e) => {
+                e.preventDefault();
+                startSearch();
+              }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-2 w-full max-w-xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl"
             >
-              <option value="">-- Choisir une langue --</option>
-              {languages.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="space-y-6">
+                {/* Languages */}
+                <div>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
+                    <Languages className="w-5 h-5" /> Langues
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {languages.map((l) => {
+                      const active = selectedLanguages.includes(l);
+                      return (
+                        <button
+                          type="button"
+                          key={l}
+                          onClick={() => toggle(l, setSelectedLanguages)}
+                          className={`px-3 py-2 rounded-xl text-sm border transition ${
+                            active
+                              ? "bg-indigo-500 text-white border-indigo-400"
+                              : "bg-slate-900/60 text-indigo-100 border-white/15 hover:border-white/30"
+                          }`}
+                        >
+                          {l}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-          <div>
-            <label className="block mb-1 font-semibold">Mon rôle :</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
+                {/* Roles (max 2) */}
+                <div>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
+                    <Gamepad2 className="w-5 h-5" /> Rôles (max 2)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {roles.map((r) => {
+                      const active = selectedRoles.includes(r);
+                      const disabled = !active && selectedRoles.length >= 2;
+                      return (
+                        <button
+                          type="button"
+                          key={r}
+                          disabled={disabled}
+                          onClick={() => toggle(r, setSelectedRoles, 2)}
+                          className={`px-3 py-2 rounded-xl text-sm border transition ${
+                            active
+                              ? "bg-indigo-500 text-white border-indigo-400"
+                              : disabled
+                              ? "bg-slate-900/30 text-indigo-300 border-white/10 cursor-not-allowed"
+                              : "bg-slate-900/60 text-indigo-100 border-white/15 hover:border-white/30"
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Moods */}
+                <div>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
+                    <Smile className="w-5 h-5" /> Moods
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {moods.map((m) => {
+                      const active = selectedMoods.includes(m);
+                      return (
+                        <button
+                          type="button"
+                          key={m}
+                          onClick={() => toggle(m, setSelectedMoods)}
+                          className={`px-3 py-2 rounded-xl text-sm border transition ${
+                            active
+                              ? "bg-indigo-500 text-white border-indigo-400"
+                              : "bg-slate-900/60 text-indigo-100 border-white/15 hover:border-white/30"
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Team size */}
+                <div>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
+                    <Users className="w-5 h-5" /> Nombre de coéquipiers à
+                    trouver
+                  </label>
+                  <select
+                    className="w-full bg-slate-900/60 text-white border border-white/15 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    value={teamSize}
+                    onChange={(e) => setTeamSize(Number(e.target.value))}
+                  >
+                    {teamSizes.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-900/30"
+                >
+                  <Search className="w-5 h-5" /> Lancer la recherche
+                </button>
+
+                <div className="flex flex-wrap gap-2 text-xs text-indigo-200/80">
+                  <span className="px-2 py-1 rounded bg-white/10">
+                    Rôles: {selectedRoles.join(", ") || "—"}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-white/10">
+                    Langues: {selectedLanguages.join(", ") || "—"}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-white/10">
+                    Moods: {selectedMoods.join(", ") || "—"}
+                  </span>
+                  <span className="px-2 py-1 rounded bg-white/10">
+                    Coéquipiers: {teamSize}
+                  </span>
+                </div>
+              </div>
+            </motion.form>
+          )}
+
+          {/* Searching */}
+          <AnimatePresence>
+            {searching && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 16 }}
+                className="col-span-2 max-w-xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-xl text-center"
+              >
+                <div className="relative mx-auto mb-6 h-56 w-56">
+                  <div className="absolute inset-0 rounded-full border border-indigo-300/40" />
+                  <div className="absolute inset-4 rounded-full border border-indigo-300/30 animate-ping" />
+                  <div className="absolute inset-8 rounded-full border border-indigo-300/20 animate-pulse" />
+                  <div className="absolute inset-12 rounded-full bg-indigo-400/20 blur-xl" />
+                  <motion.div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+                  >
+                    <RefreshCw className="w-10 h-10 text-indigo-200" />
+                  </motion.div>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 text-indigo-100">
+                  <TimerReset className="w-5 h-5" />
+                  <span className="text-lg font-semibold">
+                    {formatTime(searchTime)}
+                  </span>
+                </div>
+                <p className="mt-2 text-indigo-200/90">
+                  Recherche de joueurs en cours…
+                </p>
+
+                <button
+                  onClick={stopSearch}
+                  className="mt-6 inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-medium py-2.5 px-4 rounded-xl transition shadow-lg shadow-rose-900/30"
+                >
+                  <XCircle className="w-5 h-5" /> Arrêter la recherche
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Match found */}
+          {!searching && matchTeam && !roomId && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-2 max-w-2xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl"
             >
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-3">
+                Match trouvé !
+              </h2>
+              <ul className="grid md:grid-cols-2 gap-3">
+                {matchTeam.map((player) => (
+                  <li
+                    key={player.userId}
+                    className="rounded-xl bg-slate-900/60 border border-white/10 p-4 text-indigo-100"
+                  >
+                    <div className="font-semibold">Joueur: {player.userId}</div>
+                    <div className="text-indigo-200/90 text-sm mt-1">
+                      Rôles: <span className="font-medium">
+                        {player.roles?.join(", ")}
+                      </span>{" "}
+                      · Langues: {player.languages?.join(", ")} · Moods:{" "}
+                      {player.moods?.join(", ")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
-          <div>
-            <label className="block mb-1 font-semibold">Mood :</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={mood}
-              onChange={(e) => setMood(e.target.value)}
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2.5 px-4 rounded-xl transition"
+                  onClick={() => {
+                    setMatchTeam(null);
+                    setSearching(false);
+                    setSelectedLanguages([]);
+                    setSelectedRoles([]);
+                    setSelectedMoods([]);
+                    setTeamSize(1);
+                    setDiscordInvite(null);
+                  }}
+                >
+                  Rechercher un autre match
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Chat */}
+          {roomId && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-2"
             >
-              {moods.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block mb-1 font-semibold">
-              Nombre de coéquipiers à trouver :
-            </label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={teamSize}
-              onChange={(e) => setTeamSize(Number(e.target.value))}
-            >
-              {teamSizes.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition"
-          >
-            Lancer la recherche
-          </button>
-        </form>
-      )}
-
-      {searching && (
-        <div className="text-center mt-6 space-y-4">
-          <p>Recherche de joueurs en cours...</p>
-          <p>Temps écoulé : {formatTime(searchTime)}</p>
-
-          <button
-            onClick={stopSearch}
-            className="mt-2 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition"
-          >
-            Arrêter la recherche
-          </button>
+              <ChatRoom discordInvite={discordInvite} onLeave={leaveChat} />
+            </motion.div>
+          )}
         </div>
-      )}
-
-      {roomId && (
-        <ChatRoom
-          discordInvite={discordInvite}
-          onLeave={leaveChat}
-        />
-      )}
-
-      {!searching && matchTeam && !roomId && (
-        <div className="mt-6">
-          <h2 className="text-xl font-semibold mb-2">Match trouvé !</h2>
-          <ul className="list-disc list-inside">
-            {matchTeam.map((player) => (
-              <li key={player.userId}>
-                Joueur: {player.userId} - Rôle: {player.role} - Langue:{" "}
-                {player.language} - Mood: {player.mood}
-              </li>
-            ))}
-          </ul>
-
-          <button
-            className="mt-4 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition"
-            onClick={() => {
-              setMatchTeam(null);
-              setSearching(false);
-              setLanguage("");
-              setRole(roles[0]);
-              setMood(moods[0]);
-              setTeamSize(1);
-              setDiscordInvite(null);
-            }}
-          >
-            Rechercher un autre match
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 export default Match;
+
+
+
 

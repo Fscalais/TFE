@@ -5,14 +5,13 @@ const router = Router();
 
 // POST /matchmaking/search
 router.post("/search", (req: Request, res: Response) => {
-  const { userId, language, role, mood } = req.body;
-
-  if (!userId || !language || !role || !mood) {
-    return res.status(400).json({ error: "Champs manquants" });
+  const { userId, languages, roles, moods } = req.body;
+  if (!userId || !Array.isArray(languages) || languages.length === 0 ||
+      !Array.isArray(roles) || roles.length === 0 || roles.length > 2 ||
+      !Array.isArray(moods) || moods.length === 0) {
+    return res.status(400).json({ error: "Champs invalides" });
   }
-
-  addPlayerToQueue({ userId, language, role, mood });
-
+  addPlayerToQueue({ userId, languages, roles, moods });
   return res.json({ message: "Recherche lancée" });
 });
 
