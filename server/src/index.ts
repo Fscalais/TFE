@@ -35,7 +35,7 @@ app.use(cors({
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));
-app.options('*', cors());
+app.options('(.*)', cors());
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && [CLIENT_URL, 'http://localhost:3000'].includes(origin)) {
