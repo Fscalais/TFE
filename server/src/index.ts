@@ -21,13 +21,18 @@ import scrimRoutes from './routes/scrim.routes';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 const JWT_SECRET = process.env.JWT_SECRET!;
+
+// URLs (prod-friendly)
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
+const DISCORD_BOT_URL = process.env.DISCORD_BOT_URL || 'http://localhost:3001';
 
 // --- Middleware ---
 app.use(
   cors({
-    origin: 'http://localhost:3000',
+    origin: [CLIENT_URL, 'http://localhost:3000'],
     credentials: true,
   })
 );
@@ -35,19 +40,15 @@ app.use(express.json());
 app.use('/api', scrimRoutes);
 
 // --- Passport Google OAuth config ---
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-passport.deserializeUser((obj: any, done: (err: any, user?: any) => void) => {
-  done(null, obj);
-});
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj: any, done: (err: any, user?: any) => void) => done(null, obj));
 
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: 'http://localhost:5000/auth/google/callback',
+      callbackURL: `${API_BASE_URL}/auth/google/callback`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -59,7 +60,7 @@ passport.use(
             email: profile.emails?.[0].value,
           });
         }
-        const token = jwt.sign({ id: user._id.toString() }, JWT_SECRET, { expiresIn: '7d' });
+        // on ne renvoie pas le token ici, il sera créé dans la route callback
         done(null, user);
       } catch (error) {
         done(error, false);
@@ -72,13 +73,15 @@ app.use(passport.initialize());
 
 // OAuth routes
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
 app.get(
   '/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/' }),
   (req, res) => {
     const user = req.user as any;
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.redirect(`http://localhost:3000/auth/success?token=${token}`);
+    // redirige vers le front
+    res.redirect(`${CLIENT_URL}/auth/success?token=${token}`);
   }
 );
 
@@ -89,8 +92,13 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/riot', riotRoutes);
 app.use('/matchmaking', matchmakingRoutes);
 
+// petite route de santé
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, {
+  cors: { origin: [CLIENT_URL, 'http://localhost:3000'] },
+});
 
 /* ===========================
    Matchmaking multi-critères
@@ -109,6 +117,7 @@ const RANKS = [
   'GrandMaître',
   'Challenger',
 ] as const;
+
 const rankIdx = (r: string) => RANKS.indexOf(r as any);
 const ranksClose = (a: string, b: string, tolerance = 1) =>
   Math.abs(rankIdx(a) - rankIdx(b)) <= tolerance; // même rang ou +/-1
@@ -157,6 +166,7 @@ function tryMatchPlayers() {
   }
 
   if (team.length === totalTeamSize) {
+    // retire de la file d'attente
     for (const p of team) {
       const idx = waitingPlayers.findIndex((w) => w.socketId === p.socketId);
       if (idx !== -1) waitingPlayers.splice(idx, 1);
@@ -168,7 +178,7 @@ function tryMatchPlayers() {
 
 async function createDiscordRoom(roomId: string): Promise<string | null> {
   try {
-    const res = await axios.post('http://localhost:3001/create-room', { roomId });
+    const res = await axios.post(`${DISCORD_BOT_URL}/create-room`, { roomId });
     return res.data.inviteUrl;
   } catch (error) {
     console.error('Erreur création salon Discord', error);
@@ -198,7 +208,7 @@ io.on('connection', (socket) => {
     const matchedTeam = tryMatchPlayers();
     if (matchedTeam) {
       const roomId = 'match_' + Math.random().toString(36).substring(2, 10);
-      const discordInvite = await createDiscordRoom(roomId); // ou null si pas de bot
+      const discordInvite = await createDiscordRoom(roomId); // peut être null si bot down
 
       for (const player of matchedTeam) {
         io.to(player.socketId).emit('matchFound', {
@@ -232,7 +242,7 @@ mongoose
   .then(() => {
     console.log('✅ MongoDB connected');
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🚀 Socket.IO running`);
     });
   })
