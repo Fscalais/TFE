@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import ChatRoom from "../components/ChatRoom";
+import { useSocket } from "../context/SocketContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Languages,
@@ -31,11 +32,10 @@ const ranks = [
   "Challenger",
 ];
 
-const socket: Socket = io("http://localhost:5000"); // adapte si besoin
-
 function Match() {
   const { user } = useAuth();
   const userId = user?.id;
+  const socket = useSocket()
 
   // --- Multi-criteria ---
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -84,6 +84,7 @@ function Match() {
   };
 
   const startSearch = () => {
+    if (!socket) return;
     if (!userId) return alert("Tu dois être connecté pour lancer une recherche.");
     if (selectedLanguages.length === 0) return alert("Choisis au moins une langue.");
     if (selectedRoles.length === 0 || selectedRoles.length > 2)
@@ -107,6 +108,7 @@ function Match() {
   };
 
   const stopSearch = () => {
+    if (!socket) return;
     socket.emit("stopSearch");
     setSearching(false);
     setMatchTeam(null);
@@ -115,32 +117,33 @@ function Match() {
   };
 
   useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connecté au serveur socket", socket.id);
-    });
-
-    socket.on("matchFound", (data) => {
+    if (!socket) return; // ✅ attend la connexion
+    const onConnect = () => console.log("Connecté au serveur socket", socket.id);
+    const onMatchFound = (data: any) => {
       console.log("Match trouvé !", data);
       setMatchTeam(data.team);
       setRoomId(data.roomId);
       setDiscordInvite(data.discordInvite || null);
       setSearching(false);
-    });
-
-    socket.on("disconnect", () => {
+    };
+    const onDisconnect = () => {
       console.log("Déconnecté du serveur socket");
       setSearching(false);
       setMatchTeam(null);
       setRoomId(null);
       setDiscordInvite(null);
-    });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("matchFound", onMatchFound);
+    socket.on("disconnect", onDisconnect);
 
     return () => {
-      socket.off("connect");
-      socket.off("matchFound");
-      socket.off("disconnect");
+      socket.off("connect", onConnect);
+      socket.off("matchFound", onMatchFound);
+      socket.off("disconnect", onDisconnect);
     };
-  }, []);
+  }, [socket]);
 
   const leaveChat = () => {
     setRoomId(null);

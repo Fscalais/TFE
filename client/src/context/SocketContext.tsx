@@ -7,7 +7,8 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const newSocket = io(API_URL, { transports: ['websocket'] });
     setSocket(newSocket);
 
     return () => {
@@ -15,11 +16,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  return (
-    <SocketContext.Provider value={socket}>
-      {children}
-    </SocketContext.Provider>
-  );
+  return <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>;
 };
 
 export const useSocket = () => {

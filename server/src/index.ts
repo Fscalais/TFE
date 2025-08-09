@@ -32,7 +32,7 @@ const DISCORD_BOT_URL = process.env.DISCORD_BOT_URL || 'http://localhost:3001';
 // --- Middleware ---
 app.use(
   cors({
-    origin: [CLIENT_URL, 'http://localhost:3000'],
+    origin: ['http://localhost:3000', 'https://tfe-pearl.vercel.app'],
     credentials: true,
   })
 );
@@ -97,7 +97,11 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: [CLIENT_URL, 'http://localhost:3000'] },
+  cors: {
+    origin: [CLIENT_URL, 'http://localhost:3000'],
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
 /* ===========================
