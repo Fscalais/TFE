@@ -1,10 +1,10 @@
 // src/types/express/index.d.ts
-import { Request } from 'express';
 
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-    }
+declare namespace Express {
+  // Add ONLY what you need to Request/Response.
+  interface Request {
+    user?: any;
   }
 }
+
+export {};
