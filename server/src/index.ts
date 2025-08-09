@@ -24,22 +24,35 @@ const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-// URLs (prod-friendly)
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
 const DISCORD_BOT_URL = process.env.DISCORD_BOT_URL || 'http://localhost:3001';
 
-// --- Middleware ---
-app.use(
-  cors({
-    origin: ['http://localhost:3000', 'https://tfe-pearl.vercel.app'],
-    credentials: true,
-  })
-);
+// ---------- CORS ----------
+app.use(cors({
+  origin: [CLIENT_URL, 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+}));
+app.options('*', cors());
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && [CLIENT_URL, 'http://localhost:3000'].includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json());
 app.use('/api', scrimRoutes);
 
-// --- Passport Google OAuth config ---
+// ---------- Google OAuth ----------
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj: any, done: (err: any, user?: any) => void) => done(null, obj));
 
@@ -60,7 +73,6 @@ passport.use(
             email: profile.emails?.[0].value,
           });
         }
-        // on ne renvoie pas le token ici, il sera créé dans la route callback
         done(null, user);
       } catch (error) {
         done(error, false);
@@ -71,7 +83,6 @@ passport.use(
 
 app.use(passport.initialize());
 
-// OAuth routes
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get(
@@ -80,12 +91,11 @@ app.get(
   (req, res) => {
     const user = req.user as any;
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    // redirige vers le front
     res.redirect(`${CLIENT_URL}/auth/success?token=${token}`);
   }
 );
 
-// API routes
+// ---------- Routes API ----------
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
@@ -94,6 +104,7 @@ app.use('/matchmaking', matchmakingRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+// ---------- Socket.IO ----------
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -101,29 +112,17 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
 });
 
-/* ===========================
-   Matchmaking multi-critères
-   =========================== */
-
-// rangs + helpers
+// ---------- Matchmaking ----------
 const RANKS = [
-  'Fer',
-  'Bronze',
-  'Argent',
-  'Or',
-  'Platine',
-  'Émeraude',
-  'Diamant',
-  'Maître',
-  'GrandMaître',
-  'Challenger',
+  'Fer','Bronze','Argent','Or','Platine','Émeraude','Diamant','Maître','GrandMaître','Challenger',
 ] as const;
 
 const rankIdx = (r: string) => RANKS.indexOf(r as any);
 const ranksClose = (a: string, b: string, tolerance = 1) =>
-  Math.abs(rankIdx(a) - rankIdx(b)) <= tolerance; // même rang ou +/-1
+  Math.abs(rankIdx(a) - rankIdx(b)) <= tolerance;
 
 interface SearchCriteria {
   socketId: string;
@@ -132,7 +131,7 @@ interface SearchCriteria {
   roles: string[];
   moods: string[];
   teamSize: number;
-  rank: string; // NEW
+  rank: string;
 }
 
 const waitingPlayers: SearchCriteria[] = [];
@@ -151,7 +150,7 @@ function tryMatchPlayers() {
     (p) =>
       intersects(p.languages, seed.languages) &&
       intersects(p.moods, seed.moods) &&
-      ranksClose(p.rank, seed.rank, 1) // tolérance +/-1
+      ranksClose(p.rank, seed.rank, 1)
   );
 
   if (candidates.length < totalTeamSize) return null;
@@ -169,7 +168,6 @@ function tryMatchPlayers() {
   }
 
   if (team.length === totalTeamSize) {
-    // retire de la file d'attente
     for (const p of team) {
       const idx = waitingPlayers.findIndex((w) => w.socketId === p.socketId);
       if (idx !== -1) waitingPlayers.splice(idx, 1);
@@ -193,7 +191,6 @@ io.on('connection', (socket) => {
   console.log(`Client connecté : ${socket.id}`);
 
   socket.on('startSearch', async (criteria: Omit<SearchCriteria, 'socketId'>) => {
-    // validation
     if (
       !criteria?.userId ||
       !Array.isArray(criteria.languages) || criteria.languages.length === 0 ||
@@ -211,7 +208,7 @@ io.on('connection', (socket) => {
     const matchedTeam = tryMatchPlayers();
     if (matchedTeam) {
       const roomId = 'match_' + Math.random().toString(36).substring(2, 10);
-      const discordInvite = await createDiscordRoom(roomId); // peut être null si bot down
+      const discordInvite = await createDiscordRoom(roomId);
 
       for (const player of matchedTeam) {
         io.to(player.socketId).emit('matchFound', {
