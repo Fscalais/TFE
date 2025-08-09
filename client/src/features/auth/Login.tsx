@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import GoogleLoginButton from '../../components/GoogleLoginButton';
+import api from '../../services/api'; // ✅
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -15,72 +16,34 @@ function Login() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim() || !password) {
-      setError('Email et mot de passe sont obligatoires');
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
-      return;
-    }
+    if (!email.trim() || !password) return setError('Email et mot de passe sont obligatoires');
+    if (password.length < 8) return setError('Le mot de passe doit contenir au moins 8 caractères');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.message) setError(data.message);
-        else if (data.errors && Array.isArray(data.errors)) {
-          setError(data.errors.map((e: any) => e.msg).join(', '));
-        } else {
-          setError('Échec de la connexion');
-        }
-        return;
-      }
+      const res = await api.post('/auth/login', { email, password }); // ✅
+      const data = res.data;
 
       login(data.user, data.token);
       navigate('/profile');
-    } catch (err) {
-      setError('Erreur réseau ou serveur');
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data?.message) setError(data.message);
+      else if (Array.isArray(data?.errors)) setError(data.errors.map((e: any) => e.msg).join(', '));
+      else setError('Erreur réseau ou serveur');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-700 p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-indigo-700 mb-6 text-center">
-          Connexion
-        </h1>
-
+        <h1 className="text-3xl font-bold text-indigo-700 mb-6 text-center">Connexion</h1>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-            required
-          />
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-500 transition"
-          >
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+                 className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" required />
+          <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+                 className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" required />
+          <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-500 transition">
             Se connecter
           </button>
         </form>
@@ -97,9 +60,7 @@ function Login() {
 
         <p className="text-center mt-4 text-sm">
           Pas encore de compte ?{' '}
-          <Link to="/register" className="text-indigo-600 hover:underline">
-            Inscription
-          </Link>
+          <Link to="/register" className="text-indigo-600 hover:underline">Inscription</Link>
         </p>
       </div>
     </div>
@@ -107,5 +68,3 @@ function Login() {
 }
 
 export default Login;
-
-

@@ -1,8 +1,10 @@
 import React from 'react';
 
 export default function GoogleLoginButton() {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; // ✅
+
   const loginWithGoogle = () => {
-    window.open('http://localhost:5000/auth/google', '_self');
+    window.open(`${API_URL}/auth/google`, '_self'); // ✅
   };
 
   return (
@@ -14,4 +16,3 @@ export default function GoogleLoginButton() {
     </button>
   );
 }
-
