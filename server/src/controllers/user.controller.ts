@@ -54,3 +54,39 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
+// --- PUBLIC PROFILE BY ID ---
+export const getPublicProfileById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Ne renvoie que les champs "publics"
+    const fields =
+      'username riotSummonerName location age bio rank mood languages games roles createdAt updatedAt';
+
+    const user = await User.findById(id).select(fields);
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    return res.json(user);
+  } catch (error) {
+    console.error('❌ getPublicProfileById error:', error);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// --- PUBLIC PROFILE BY USERNAME ---
+export const getPublicProfileByUsername = async (req: Request, res: Response) => {
+  try {
+    const { username } = req.params;
+
+    const fields =
+      'username riotSummonerName location age bio rank mood languages games roles createdAt updatedAt';
+
+    const user = await User.findOne({ username }).select(fields);
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    return res.json(user);
+  } catch (error) {
+    console.error('❌ getPublicProfileByUsername error:', error);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+};

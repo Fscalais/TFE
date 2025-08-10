@@ -3,7 +3,6 @@ import { addPlayerToQueue, getWaitingPlayers } from "../services/matchmaking.ser
 
 const router = Router();
 
-// POST /matchmaking/search
 router.post("/search", (req: Request, res: Response) => {
   const { userId, languages, roles, moods } = req.body;
   if (!userId || !Array.isArray(languages) || languages.length === 0 ||
@@ -15,7 +14,6 @@ router.post("/search", (req: Request, res: Response) => {
   return res.json({ message: "Recherche lancée" });
 });
 
-// GET /matchmaking/waiting (pour debug / voir qui attend)
 router.get("/waiting", (req: Request, res: Response) => {
   return res.json(getWaitingPlayers());
 });

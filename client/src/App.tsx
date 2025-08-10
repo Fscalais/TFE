@@ -16,6 +16,7 @@ import AuthSuccess from './pages/AuthSuccess';
 import Scrims from './pages/Scrims';
 import CreateScrim from './pages/CreateScrim';
 import ScrimDetail from './pages/ScrimDetails';
+import PublicProfile from './pages/PublicProfile';
 
 function App() {
   return (
@@ -30,21 +31,22 @@ function App() {
           <Route path="/auth/success" element={<AuthSuccess />} />
           <Route path="/scrims/:id" element={<ScrimDetail />} />
 
-          <Route 
-            path="/profile" 
+          <Route
+            path="/profile"
             element={
               <PrivateRoute>
                 <Profile />
               </PrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/scrims" 
+
+          <Route
+            path="/scrims"
             element={
               <PrivateRoute>
                 <Scrims />
               </PrivateRoute>
-            } 
+            }
           />
 
           <Route
@@ -56,16 +58,16 @@ function App() {
             }
           />
 
-          <Route 
-            path="/match" 
+          <Route
+            path="/match"
             element={
               <PrivateRoute>
                 <Match />
               </PrivateRoute>
-            } 
+            }
           />
 
-          <Route 
+          <Route
             path="/invitations"
             element={
               <PrivateRoute>
@@ -74,35 +76,55 @@ function App() {
             }
           />
 
-          <Route path="/teams/create" element={
-            <PrivateRoute>
-              <TeamCreate />
-            </PrivateRoute>
-          } />
+          <Route
+            path="/teams/create"
+            element={
+              <PrivateRoute>
+                <TeamCreate />
+              </PrivateRoute>
+            }
+          />
 
-          <Route path="/teams" element={
-            <PrivateRoute>
-              <TeamList />
-            </PrivateRoute>
-          } />
+          <Route
+            path="/teams"
+            element={
+              <PrivateRoute>
+                <TeamList />
+              </PrivateRoute>
+            }
+          />
 
-          <Route path="/teams/:id" element={
-            <PrivateRoute>
-              <TeamDetail />
-            </PrivateRoute>
-          } />
-          
-          <Route 
-            path="/edit-profile" 
+          <Route
+            path="/teams/:id"
+            element={
+              <PrivateRoute>
+                <TeamDetail />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Profil public d'un membre (protégé pour les utilisateurs connectés) */}
+          <Route
+            path="/users/:userId"
+            element={
+              <PrivateRoute>
+                <PublicProfile />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/edit-profile"
             element={
               <PrivateRoute>
                 <EditProfile />
               </PrivateRoute>
-            } 
+            }
           />
         </Routes>
       </div>
     </>
   );
 }
+
 export default App;

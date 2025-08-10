@@ -16,10 +16,8 @@ app.use(express.json());
 
 const PORT = 3001;
 
-// 1h d'inactivité
 const INACTIVE_MS = 1 * 60 * 1000;
 
-// ⚠️ Intents ajoutés: GuildMessages + MessageContent pour capter les messages
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -36,17 +34,15 @@ client.once("ready", () => {
   console.log(`Bot connecté en tant que ${client.user?.tag}`);
 });
 
-// roomId -> infos + dernier timestamp + timer
 type RoomInfo = {
   textChannelId: string;
   voiceChannelId: string;
   inviteUrl: string;
-  lastActivityAt: number;        // ms epoch
+  lastActivityAt: number;  
   timer?: NodeJS.Timeout;
 };
 const activeRooms = new Map<string, RoomInfo>();
 
-/** Supprime proprement une room (texte + vocal) */
 async function deleteRoom(roomId: string) {
   const room = activeRooms.get(roomId);
   if (!room) return;
@@ -67,10 +63,6 @@ async function deleteRoom(roomId: string) {
   }
 }
 
-/** (Re)programme un timer d'inactivité.
- *  - Si quelqu’un est dans le vocal au moment d’expirer, on RE-ARME pour 1h.
- *  - Sinon on supprime.
- */
 function scheduleInactivityTimer(roomId: string) {
   const room = activeRooms.get(roomId);
   if (!room) return;
@@ -85,9 +77,8 @@ function scheduleInactivityTimer(roomId: string) {
       const guild = await client.guilds.fetch(GUILD_ID);
       const voice = await guild.channels.fetch(current.voiceChannelId);
 
-      // Si le vocal existe et a des membres, ne pas supprimer -> on reprogramme
-      // (présence en vocal = activité continue)
-      // @ts-ignore – voice peut être null si déjà supprimé
+
+      // @ts-ignore
       const hasMembers = voice && "members" in voice && voice.members.size > 0;
       if (hasMembers) {
         console.log(`[TIMER] ${roomId}: membres présents -> on reprogramme`);
@@ -95,15 +86,12 @@ function scheduleInactivityTimer(roomId: string) {
         return;
       }
     } catch {
-      // si fetch échoue, on continue la logique de suppression
     }
 
-    // Si personne présent et pas d’activité récente depuis 1h -> supprimer
     const now = Date.now();
     if (now - current.lastActivityAt >= INACTIVE_MS) {
       await deleteRoom(roomId);
     } else {
-      // cas rare: activité tout juste loggée mais timer d’avant a expiré
       scheduleInactivityTimer(roomId);
     }
   }, INACTIVE_MS);
@@ -111,7 +99,6 @@ function scheduleInactivityTimer(roomId: string) {
   activeRooms.set(roomId, room);
 }
 
-/** Déclare de l’activité et relance le timer */
 function bumpActivity(roomId: string) {
   const room = activeRooms.get(roomId);
   if (!room) return;
@@ -120,7 +107,6 @@ function bumpActivity(roomId: string) {
   scheduleInactivityTimer(roomId);
 }
 
-/** Utilitaires pour retrouver un roomId à partir d’un channelId */
 function getRoomIdByTextChannel(channelId: string): string | null {
   for (const [rid, info] of activeRooms.entries()) {
     if (info.textChannelId === channelId) return rid;
@@ -173,10 +159,9 @@ app.post("/create-room", async (req, res) => {
       textChannelId: textChannel.id,
       voiceChannelId: voiceChannel.id,
       inviteUrl: invite.url,
-      lastActivityAt: Date.now(), // point de départ = création (=> “1h après création si rien ne se passe”)
+      lastActivityAt: Date.now(),
     });
 
-    // Programme l’auto-suppression depuis la création
     scheduleInactivityTimer(roomId);
 
     return res.json({ inviteUrl: invite.url });
@@ -199,9 +184,7 @@ app.post("/delete-room", async (req, res) => {
   }
 });
 
-// -------- EVENTS --------
 
-// Message dans le text channel => on considère ça comme activité et on relance le timer
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
   const rid = getRoomIdByTextChannel(message.channelId);
@@ -211,9 +194,7 @@ client.on("messageCreate", (message) => {
   bumpActivity(rid);
 });
 
-// Voice: join / leave / move -> activité
 client.on("voiceStateUpdate", (oldState, newState) => {
-  // join
   if (newState.channelId) {
     const rid = getRoomIdByVoiceChannel(newState.channelId);
     if (rid) {
@@ -221,7 +202,6 @@ client.on("voiceStateUpdate", (oldState, newState) => {
       bumpActivity(rid);
     }
   }
-  // leave
   if (oldState.channelId && oldState.channelId !== newState.channelId) {
     const rid = getRoomIdByVoiceChannel(oldState.channelId);
     if (rid) {

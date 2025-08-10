@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -99,9 +99,22 @@ const TeamDetail = () => {
       <p className="mb-4">{team.description || 'Pas de description'}</p>
 
       <h2 className="text-xl font-semibold mb-2">Membres</h2>
-      <ul className="mb-6">
+      <ul className="mb-6 space-y-1">
         {team.members.map(member => (
-          <li key={member._id}>{member.username}</li>
+          <li key={member._id}>
+            <Link
+              to={`/users/${member._id}`}
+              className="text-indigo-600 hover:text-indigo-500 hover:underline"
+              title={`Voir le profil de ${member.username}`}
+            >
+              {member.username}
+            </Link>
+            {team.creator._id === member._id && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 align-middle">
+                Créateur
+              </span>
+            )}
+          </li>
         ))}
       </ul>
 

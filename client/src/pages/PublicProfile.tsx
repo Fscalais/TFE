@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import api from '../services/api';
 
-type User = {
+type PublicUser = {
+  _id?: string;
+  id?: string;
   username: string;
   riotSummonerName?: string;
   location?: string;
@@ -39,44 +41,24 @@ type Mastery = {
 
 const Spinner = () => (
   <div className="flex justify-center items-center mt-20">
-    <svg
-      className="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-400"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      ></circle>
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-      ></path>
+    <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
     </svg>
   </div>
 );
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-const Profile = () => {
-  const [profile, setProfile] = useState<User | null>(null);
-  const [riotData, setRiotData] = useState<{
-    lastMatches?: Match[];
-    lastMatch?: Match | null;
-    [key: string]: any;
-  } | null>(null);
+export default function PublicProfile() {
+  const { userId } = useParams<{ userId: string }>();
+
+  const [profile, setProfile] = useState<PublicUser | null>(null);
+  const [riotData, setRiotData] = useState<{ lastMatches?: Match[]; lastMatch?: Match | null; [k: string]: any } | null>(null);
   const [masteries, setMasteries] = useState<Mastery[] | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [error, setError] = useState<string>('');
-  const [loadingMasteries, setLoadingMasteries] = useState(false);
   const [ddragonVersion, setDdragonVersion] = useState<string>('');
-  const navigate = useNavigate();
 
   useEffect(() => {
   const fetchVersion = async () => {
@@ -92,59 +74,50 @@ const Profile = () => {
   fetchVersion();
 }, []);
 
-   useEffect(() => {
-    const fetchProfile = async () => {
+  // fetch user public + riot data
+  useEffect(() => {
+    const run = async () => {
+      if (!userId) return;
       try {
-        const { data } = await api.get('/users/me');
+        const { data } = await api.get<PublicUser>(`/users/${userId}`);
         setProfile(data);
 
         if (data.riotSummonerName) {
-          try {
-            const riotRes = await fetch(`${API_URL}/api/riot/data/${encodeURIComponent(data.riotSummonerName)}`);
-            if (!riotRes.ok) throw new Error('Erreur récupération données Riot');
-            const riotJson = await riotRes.json();
-            setRiotData(riotJson);
-            setSelectedMatch(riotJson.lastMatch);
-          } catch (err: any) {
-            setError(err.message || 'Erreur récupération données Riot');
-          }
+          const riotRes = await fetch(`${API_URL}/api/riot/data/${encodeURIComponent(data.riotSummonerName)}`);
+          if (!riotRes.ok) throw new Error('Erreur récupération données Riot');
+          const riotJson = await riotRes.json();
+          setRiotData(riotJson);
+          setSelectedMatch(riotJson.lastMatch);
         }
       } catch (e: any) {
-        setError(e?.response?.data?.message || 'Erreur chargement profil');
+        setError(e?.response?.data?.message || e?.message || 'Erreur chargement profil public');
       }
     };
+    run();
+  }, [userId]);
 
-    fetchProfile();
-  }, []);
-
-
+  // mastery
   useEffect(() => {
     const fetchMastery = async (puuid: string) => {
-      setLoadingMasteries(true);
       try {
         const res = await fetch(`${API_URL}/api/riot/mastery/${puuid}`);
         if (!res.ok) throw new Error('Erreur récupération maîtrise');
         const masteryData = await res.json();
         setMasteries(masteryData);
-      } catch (err: any) {
-        setError(err.message || 'Erreur récupération maîtrise');
-      } finally {
-        setLoadingMasteries(false);
+      } catch (e: any) {
+        setError(e?.message || 'Erreur récupération maîtrise');
       }
     };
-
     if (riotData?.puuid) fetchMastery(riotData.puuid);
   }, [riotData?.puuid]);
 
-  const getChampionIconUrl = (championName: string) => {
-    if (!ddragonVersion) return '';
-    return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${championName}.png`;
-  };
+  const getChampionIconUrl = (championName: string) =>
+    ddragonVersion ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${championName}.png` : '';
 
-  if (!profile) return <p className="text-center mt-10 text-gray-300">Chargement...</p>;
+  const formatBool = (b: boolean) => (b ? '✅ Victoire' : '❌ Défaite');
+
   if (!ddragonVersion) return <Spinner />;
-
-  const formatBool = (b: boolean) => (b ? "✅ Victoire" : "❌ Défaite");
+  if (!profile) return <p className="text-center mt-10 text-gray-300">Chargement...</p>;
 
   return (
     <main className="min-h-screen w-full px-4 py-10 bg-gradient-to-br from-[#1e1e3f] to-[#2f2f88] text-white font-sans">
@@ -153,7 +126,7 @@ const Profile = () => {
         <h1 className="text-4xl font-extrabold text-center text-indigo-300">{profile.username}</h1>
 
         <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-          <h2 className="text-xl font-bold mb-4 text-white">📍 Informations personnelles</h2>
+          <h2 className="text-xl font-bold mb-4 text-white">📍 Informations</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-200">
             <p><span className="font-semibold text-white">Localisation :</span> {profile.location || '-'}</p>
             <p><span className="font-semibold text-white">Âge :</span> {profile.age || '-'}</p>
@@ -178,7 +151,8 @@ const Profile = () => {
           <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
             <h3 className="text-xl font-bold mb-4 text-indigo-300">🧠 Match sélectionné</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-gray-200">
-              <div><strong>Champion :</strong> {selectedMatch.championName}
+              <div>
+                <strong>Champion :</strong> {selectedMatch.championName}
                 <img src={getChampionIconUrl(selectedMatch.championName)} className="inline w-6 h-6 ml-2 rounded" />
               </div>
               <div><strong>Rôle :</strong> {selectedMatch.role || '-'}</div>
@@ -205,18 +179,12 @@ const Profile = () => {
                   key={match.matchId}
                   onClick={() => setSelectedMatch(match)}
                   className={`min-w-[220px] p-4 rounded-lg shadow-md border transition 
-                    ${
-                      selectedMatch?.matchId === match.matchId
-                        ? "bg-indigo-500/70 text-white scale-105 border-indigo-300"
-                        : "bg-white/10 text-gray-200 hover:bg-indigo-600/30 border-white/20"
-                    }`}
+                    ${selectedMatch?.matchId === match.matchId
+                      ? 'bg-indigo-500/70 text-white scale-105 border-indigo-300'
+                      : 'bg-white/10 text-gray-200 hover:bg-indigo-600/30 border-white/20'}`}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <img
-                      src={getChampionIconUrl(match.championName)}
-                      alt={match.championName}
-                      className="w-8 h-8 rounded"
-                    />
+                    <img src={getChampionIconUrl(match.championName)} alt={match.championName} className="w-8 h-8 rounded" />
                     <span className="font-bold text-lg">{match.championName}</span>
                   </div>
                   <p className="italic text-sm mb-2">{match.role || '-'}</p>
@@ -229,8 +197,6 @@ const Profile = () => {
             </div>
           </section>
         )}
-
-        {loadingMasteries && <p className="text-center text-indigo-300">Chargement des maîtrises...</p>}
 
         {masteries && (
           <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20 max-w-lg mx-auto">
@@ -246,17 +212,7 @@ const Profile = () => {
           </section>
         )}
 
-        <div className="text-center">
-          <button
-            onClick={() => navigate('/edit-profile')}
-            className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg transition hover:scale-105"
-          >
-            ✏️ Modifier mon profil
-          </button>
-        </div>
       </div>
     </main>
   );
-};
-
-export default Profile;
+}
