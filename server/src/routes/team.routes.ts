@@ -8,6 +8,7 @@ import {
   getInvitationsForUser,
   acceptInvitation,
   declineInvitation,
+  deleteTeam,
   leaveTeam,
   transferCreator,
 } from '../controllers/team.controller';
@@ -25,5 +26,7 @@ router.post('/:teamId/accept', authenticate, acceptInvitation);
 router.post('/:teamId/decline', authenticate, declineInvitation);
 router.post('/:id/leave', authenticate, leaveTeam);
 router.post('/:id/transfer-creator', authenticate, transferCreator);
+
+router.delete('/:id', authenticate, deleteTeam);
 
 export default router;

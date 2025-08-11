@@ -22,6 +22,38 @@ export const createTeam = async (req: Request, res: Response) => {
   }
 };
 
+
+export const deleteTeam = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const teamId = req.params.id;
+
+    if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      return res.status(400).json({ message: 'ID invalide' });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
+
+    const isCreator = team.creator.toString() === userId.toString();
+    const isOnlyMember =
+      team.members.length === 1 && team.members[0].toString() === userId.toString();
+
+    if (!isCreator || !isOnlyMember) {
+      return res
+        .status(403)
+        .json({ message: "Seul le créateur, unique membre, peut supprimer l'équipe." });
+    }
+
+    await Team.findByIdAndDelete(teamId);
+    return res.json({ message: "Équipe supprimée" });
+  } catch (err) {
+    console.error('Erreur deleteTeam:', err);
+    return res.status(500).json({ message: 'Erreur serveur', error: err });
+  }
+};
+
 export const transferCreator = async (req: Request, res: Response) => {
   try {
     const teamId = req.params.id;

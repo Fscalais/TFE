@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  .dark select,
+  .dark input[type="date"],
+  .dark input[type="time"],
+  .dark input[type="datetime-local"],
+  .dark input[type="month"],
+  .dark input[type="week"] {
+    color-scheme: dark;
+  }
+
+  select option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+  .dark select option {
+    color: #e5e7eb;
+    background-color: #0b1029;
+  }
+
+  .dark select option:checked {
+    background-color: #1f2937;
+    color: #e5e7eb;
+  }
+}

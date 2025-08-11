@@ -14,7 +14,7 @@ export default function AuthSuccess() {
 
     if (!token) {
       setError('Token non trouvé dans l’URL');
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/login', { replace: true }), 3000);
       return;
     }
 
@@ -24,11 +24,11 @@ export default function AuthSuccess() {
           headers: { Authorization: `Bearer ${token}` },
         });
         login(user, token);
-        navigate('/profile');
+        navigate('/profile', { replace: true }); // ✅ évite le retour en arrière
       } catch (err) {
         console.error('Erreur AuthSuccess:', err);
         setError('Token invalide ou expiré. Veuillez vous reconnecter.');
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
       }
     })();
   }, [login, navigate]);
@@ -41,7 +41,5 @@ export default function AuthSuccess() {
       </div>
     );
   }
-
   return <div className="p-8 max-w-md mx-auto text-center">Connexion en cours...</div>;
 }
-
