@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import ChatRoom from "../components/ChatRoom";
 import { useSocket } from "../context/SocketContext";
@@ -20,39 +19,23 @@ const moods = ["Casual", "Compétitif", "Fun", "Tryhard"];
 const languages = ["Français", "Anglais", "Espagnol", "Allemand"];
 const teamSizes = [1, 2, 3, 4];
 const ranks = [
-  "Fer",
-  "Bronze",
-  "Argent",
-  "Or",
-  "Platine",
-  "Émeraude",
-  "Diamant",
-  "Maître",
-  "GrandMaître",
-  "Challenger",
+  "Fer","Bronze","Argent","Or","Platine","Émeraude","Diamant","Maître","GrandMaître","Challenger",
 ];
 
 function Match() {
-  const { user } = useAuth();
-  const userId = user?.id;
-  const socket = useSocket()
+  const { user, loading } = useAuth();
+  const userId = user?._id;
+  const socket = useSocket();
 
-  // --- Multi-criteria ---
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // max 2
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
-  const [selectedRank, setSelectedRank] = useState<string>(""); // NEW
+  const [selectedRank, setSelectedRank] = useState<string>("");
   const [teamSize, setTeamSize] = useState<number>(1);
 
   const [searching, setSearching] = useState(false);
   const [matchTeam, setMatchTeam] = useState<
-    {
-      userId: string;
-      roles: string[];
-      languages: string[];
-      moods: string[];
-      rank?: string;
-    }[] | null
+    { userId: string; roles: string[]; languages: string[]; moods: string[]; rank?: string }[] | null
   >(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [discordInvite, setDiscordInvite] = useState<string | null>(null);
@@ -63,22 +46,16 @@ function Match() {
   useEffect(() => {
     if (searching) {
       setSearchTime(0);
-      intervalRef.current = setInterval(() => {
-        setSearchTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => setSearchTime((p) => p + 1), 1000);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [searching]);
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
     const s = (seconds % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
@@ -87,8 +64,7 @@ function Match() {
     if (!socket) return;
     if (!userId) return alert("Tu dois être connecté pour lancer une recherche.");
     if (selectedLanguages.length === 0) return alert("Choisis au moins une langue.");
-    if (selectedRoles.length === 0 || selectedRoles.length > 2)
-      return alert("Choisis 1 à 2 rôles maximum.");
+    if (selectedRoles.length === 0 || selectedRoles.length > 2) return alert("Choisis 1 à 2 rôles maximum.");
     if (selectedMoods.length === 0) return alert("Choisis au moins un mood.");
     if (!selectedRank) return alert("Choisis un rang.");
 
@@ -103,7 +79,7 @@ function Match() {
       roles: selectedRoles,
       moods: selectedMoods,
       teamSize,
-      rank: selectedRank, // NEW
+      rank: selectedRank,
     });
   };
 
@@ -117,7 +93,7 @@ function Match() {
   };
 
   useEffect(() => {
-    if (!socket) return; // ✅ attend la connexion
+    if (!socket) return;
     const onConnect = () => console.log("Connecté au serveur socket", socket.id);
     const onMatchFound = (data: any) => {
       console.log("Match trouvé !", data);
@@ -137,7 +113,6 @@ function Match() {
     socket.on("connect", onConnect);
     socket.on("matchFound", onMatchFound);
     socket.on("disconnect", onDisconnect);
-
     return () => {
       socket.off("connect", onConnect);
       socket.off("matchFound", onMatchFound);
@@ -159,10 +134,12 @@ function Match() {
     set((prev) => {
       const has = prev.includes(value);
       if (has) return prev.filter((v) => v !== value);
-      if (limit && prev.length >= limit) return prev; // keep as-is
+      if (limit && prev.length >= limit) return prev;
       return [...prev, value];
     });
   };
+
+  if (loading) return null;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-800">
@@ -175,24 +152,18 @@ function Match() {
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
             Recherche de coéquipiers
           </h1>
-          <p className="text-indigo-200/90 mt-2">
-            Système de matchmaking basé sur tes critères.
-          </p>
+          <p className="text-indigo-200/90 mt-2">Système de matchmaking basé sur tes critères.</p>
         </motion.header>
 
         <div className="grid md:grid-cols-2 gap-6 place-items-center">
           {!searching && !matchTeam && !roomId && (
             <motion.form
-              onSubmit={(e) => {
-                e.preventDefault();
-                startSearch();
-              }}
+              onSubmit={(e) => { e.preventDefault(); startSearch(); }}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               className="col-span-2 w-full max-w-xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl"
             >
               <div className="space-y-6">
-                {/* Languages */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Languages className="w-5 h-5" /> Langues
@@ -218,7 +189,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Roles (max 2) */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Gamepad2 className="w-5 h-5" /> Rôles (max 2)
@@ -248,7 +218,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Moods */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Smile className="w-5 h-5" /> Moods
@@ -274,11 +243,8 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Rank */}
                 <div>
-                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
-                    Rang
-                  </label>
+                  <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">Rang</label>
                   <div className="flex flex-wrap gap-2">
                     {ranks.map((rk) => {
                       const active = selectedRank === rk;
@@ -300,21 +266,17 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Team size */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
-                    <Users className="w-5 h-5" /> Nombre de coéquipiers à
-                    trouver
+                    <Users className="w-5 h-5" /> Nombre de coéquipiers à trouver
                   </label>
                   <select
-                    className="w-full bg-slate-900/60 text-white border border-white/15 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full bg-slate-900/60 text-white border border-white/15 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 [color-scheme:dark]"
                     value={teamSize}
                     onChange={(e) => setTeamSize(Number(e.target.value))}
                   >
                     {teamSizes.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
+                      <option key={size} value={size}>{size}</option>
                     ))}
                   </select>
                 </div>
@@ -327,27 +289,16 @@ function Match() {
                 </button>
 
                 <div className="flex flex-wrap gap-2 text-xs text-indigo-200/80">
-                  <span className="px-2 py-1 rounded bg-white/10">
-                    Rôles: {selectedRoles.join(", ") || "—"}
-                  </span>
-                  <span className="px-2 py-1 rounded bg-white/10">
-                    Langues: {selectedLanguages.join(", ") || "—"}
-                  </span>
-                  <span className="px-2 py-1 rounded bg-white/10">
-                    Moods: {selectedMoods.join(", ") || "—"}
-                  </span>
-                  <span className="px-2 py-1 rounded bg-white/10">
-                    Rang: {selectedRank || "—"}
-                  </span>
-                  <span className="px-2 py-1 rounded bg-white/10">
-                    Coéquipiers: {teamSize}
-                  </span>
+                  <span className="px-2 py-1 rounded bg-white/10">Rôles: {selectedRoles.join(", ") || "—"}</span>
+                  <span className="px-2 py-1 rounded bg-white/10">Langues: {selectedLanguages.join(", ") || "—"}</span>
+                  <span className="px-2 py-1 rounded bg-white/10">Moods: {selectedMoods.join(", ") || "—"}</span>
+                  <span className="px-2 py-1 rounded bg-white/10">Rang: {selectedRank || "—"}</span>
+                  <span className="px-2 py-1 rounded bg-white/10">Coéquipiers: {teamSize}</span>
                 </div>
               </div>
             </motion.form>
           )}
 
-          {/* Searching */}
           <AnimatePresence>
             {searching && (
               <motion.div
@@ -372,13 +323,9 @@ function Match() {
 
                 <div className="flex items-center justify-center gap-2 text-indigo-100">
                   <TimerReset className="w-5 h-5" />
-                  <span className="text-lg font-semibold">
-                    {formatTime(searchTime)}
-                  </span>
+                  <span className="text-lg font-semibold">{formatTime(searchTime)}</span>
                 </div>
-                <p className="mt-2 text-indigo-200/90">
-                  Recherche de joueurs en cours…
-                </p>
+                <p className="mt-2 text-indigo-200/90">Recherche de joueurs en cours…</p>
 
                 <button
                   onClick={stopSearch}
@@ -390,16 +337,13 @@ function Match() {
             )}
           </AnimatePresence>
 
-          {/* Match found */}
           {!searching && matchTeam && !roomId && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               className="col-span-2 max-w-2xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl"
             >
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-3">
-                Match trouvé !
-              </h2>
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-3">Match trouvé !</h2>
               <ul className="grid md:grid-cols-2 gap-3">
                 {matchTeam.map((player) => (
                   <li
@@ -408,11 +352,8 @@ function Match() {
                   >
                     <div className="font-semibold">Joueur: {player.userId}</div>
                     <div className="text-indigo-200/90 text-sm mt-1">
-                      Rôles: <span className="font-medium">
-                        {player.roles?.join(", ")}
-                      </span>{" "}
-                      · Langues: {player.languages?.join(", ")} · Moods:{" "}
-                      {player.moods?.join(", ")} · Rang: {player.rank ?? "—"}
+                      Rôles: <span className="font-medium">{player.roles?.join(", ")}</span>{" "}
+                      · Langues: {player.languages?.join(", ")} · Moods: {player.moods?.join(", ")} · Rang: {player.rank ?? "—"}
                     </div>
                   </li>
                 ))}
@@ -427,7 +368,7 @@ function Match() {
                     setSelectedLanguages([]);
                     setSelectedRoles([]);
                     setSelectedMoods([]);
-                    setSelectedRank(""); // reset
+                    setSelectedRank("");
                     setTeamSize(1);
                     setDiscordInvite(null);
                   }}
@@ -438,13 +379,8 @@ function Match() {
             </motion.div>
           )}
 
-          {/* Chat */}
           {roomId && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="col-span-2"
-            >
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="col-span-2">
               <ChatRoom discordInvite={discordInvite} onLeave={leaveChat} />
             </motion.div>
           )}

@@ -1,27 +1,37 @@
-import React from 'react';
+import React from "react";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+//composant par dessus la page
+
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, className = "" }) => {
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
       <div
-        className="bg-white rounded p-6 max-w-md w-full"
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
+        className={
+          "relative w-full max-w-md rounded-2xl border shadow-xl backdrop-blur-xl " +
+          "border-white/10 bg-white/95 text-slate-900 " +
+          "dark:bg-[#0e1333]/90 dark:text-slate-100 " +
+          className
+        }
       >
-        {children}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
 };
 
 export default Modal;
+

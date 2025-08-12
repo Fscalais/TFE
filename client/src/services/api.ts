@@ -1,3 +1,4 @@
+//Fixe l'adresse des requêtes et ajoute le token à chaque requête
 import axios from 'axios';
 
 const baseURL =
@@ -8,7 +9,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor pour ajouter le token JWT
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token && config.headers) {

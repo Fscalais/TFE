@@ -1,3 +1,5 @@
+//charge utilisateur si token
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
 import api from '../services/api';
@@ -11,6 +13,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const mapUser = (u: any): any => (u ? { ...u, id: u.id ?? u._id } : u);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,24 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-
       try {
         const { data } = await api.get<User>('/users/me');
-        setUser(data);
-      } catch (err: any) {
+        setUser(mapUser(data));
+      } catch {
         localStorage.removeItem('token');
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-
     loadUser();
   }, []);
 
   const login = (userData: User, token: string) => {
-    setUser(userData);
     localStorage.setItem('token', token);
+    setUser(mapUser(userData));
   };
 
   const logout = () => {
@@ -56,8 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

@@ -15,7 +15,7 @@ describe('User Controller', () => {
   });
 
   describe('getProfile', () => {
-    it('should return user data when found', async () => {
+    it("return profil quand l'utilisateur existe", async () => {
       const fakeUser = { _id: '123', username: 'testuser', email: 'test@test.com' };
       mockReq.userId = '123';
       (User.findById as jest.Mock).mockReturnValue({
@@ -28,7 +28,7 @@ describe('User Controller', () => {
       expect(mockRes.json).toHaveBeenCalledWith(fakeUser);
     });
 
-    it('should return 404 if user not found', async () => {
+    it('return 404 si utilisateur introuvable', async () => {
       mockReq.userId = '123';
       (User.findById as jest.Mock).mockReturnValue({
         select: jest.fn().mockResolvedValue(null),
@@ -40,7 +40,7 @@ describe('User Controller', () => {
       expect(mockRes.json).toHaveBeenCalledWith({ message: 'Utilisateur non trouvé' });
     });
 
-    it('should return 500 on error', async () => {
+    it("return 500 en cas d'erreur", async () => {
       mockReq.userId = '123';
       const error = new Error('DB error');
       (User.findById as jest.Mock).mockReturnValue({
@@ -55,7 +55,7 @@ describe('User Controller', () => {
   });
 
   describe('updateProfile', () => {
-    it('should update and return the updated user', async () => {
+    it('met à jour et return profil', async () => {
       mockReq.userId = '123';
       mockReq.body = {
         username: 'newname',
@@ -84,7 +84,7 @@ describe('User Controller', () => {
       expect(mockRes.json).toHaveBeenCalledWith(updatedUser);
     });
 
-    it('should return 500 on error', async () => {
+    it("return 500 en cas d'erreur", async () => {
       mockReq.userId = '123';
       mockReq.body = {};
 

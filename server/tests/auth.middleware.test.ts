@@ -18,14 +18,14 @@ describe('authenticate middleware', () => {
     jest.clearAllMocks();
   });
 
-  it('should respond 401 if no Authorization header', () => {
+  it('return 401 si pas Authorization header', () => {
     authenticate(req, res, next);
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ message: 'Accès non autorisé' });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('should respond 401 if Authorization header does not start with Bearer', () => {
+  it('return 401 si Authorization header commence pas par Bearer', () => {
     req.headers.authorization = 'Basic token';
     authenticate(req, res, next);
     expect(res.status).toHaveBeenCalledWith(401);
@@ -33,7 +33,7 @@ describe('authenticate middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('should respond 401 if token is invalid', () => {
+  it('return 401 si token pas valide', () => {
     req.headers.authorization = 'Bearer invalidtoken';
     (jwt.verify as jest.Mock).mockImplementation(() => { throw new Error('invalid'); });
 
@@ -44,7 +44,7 @@ describe('authenticate middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('should call next and set req.userId if token is valid', () => {
+  it('next et défini req.userId si token valide', () => {
     req.headers.authorization = 'Bearer validtoken';
     (jwt.verify as jest.Mock).mockReturnValue({ id: 'user123' });
 

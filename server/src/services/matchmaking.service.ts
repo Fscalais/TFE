@@ -1,7 +1,8 @@
+//File d'attente en mémoire pour matchmaking
 interface SearchCriteria {
   userId: string;
   languages: string[];
-  roles: string[];  // 1..2
+  roles: string[];
   moods: string[];
 }
 const waitingPlayers: SearchCriteria[] = [];

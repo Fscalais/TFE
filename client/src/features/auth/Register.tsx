@@ -3,6 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import GoogleLoginButton from '../../components/GoogleLoginButton';
 
+const ALLOWED_PUBLIC_DOMAINS = [
+  'gmail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'yahoo.com',
+  'proton.me',
+  'protonmail.com',
+  'icloud.com',
+  'gmx.com',
+  'orange.fr',
+  'free.fr',
+  'sfr.fr',
+  'laposte.net',
+  'wanadoo.fr',
+];
+
+const emailFormatRegex =
+  /^[A-Za-z0-9._%+\-]{2,64}@[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{2,63})+$/;
+
+function validateEmailClient(email: string): string | null {
+  const e = email.trim();
+  if (e.length < 6) return 'Email trop court';
+  if (e.length > 254) return 'Email trop long';
+  if (!emailFormatRegex.test(e)) return 'Format email invalide';
+  const [local, domain] = e.toLowerCase().split('@');
+  if (!local || !domain) return 'Format email invalide';
+  if (!ALLOWED_PUBLIC_DOMAINS.includes(domain)) {
+    return 'Domaine non autorisé (gmail, outlook, yahoo, icloud, proton, …)';
+  }
+  return null;
+}
+
 function Register() {
   const navigate = useNavigate();
 
@@ -11,21 +44,24 @@ function Register() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [serverError, setServerError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors([]);
     setServerError('');
 
-    const validationErrors = [];
-    if (!email.trim()) validationErrors.push('L\'email est obligatoire');
-    else if (!/^\S+@\S+\.\S+$/.test(email)) validationErrors.push('Email invalide');
+    const validationErrors: string[] = [];
 
-    if (!username.trim()) validationErrors.push('Le pseudo est obligatoire');
+    const emailErr = validateEmailClient(email);
+    if (emailErr) validationErrors.push(emailErr);
 
-    if (!password) validationErrors.push('Le mot de passe est obligatoire');
-    else if (password.length < 8)
-      validationErrors.push('Le mot de passe doit contenir au moins 8 caractères');
+    if (!username.trim()) validationErrors.push("Le pseudo est obligatoire");
+    else if (username.trim().length < 3) validationErrors.push("Le pseudo doit faire au moins 3 caractères");
+    else if (username.trim().length > 32) validationErrors.push("Le pseudo est trop long");
+
+    if (!password) validationErrors.push("Le mot de passe est obligatoire");
+    else if (password.length < 8) validationErrors.push("Le mot de passe doit contenir au moins 8 caractères");
 
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -33,6 +69,7 @@ function Register() {
     }
 
     try {
+      setSubmitting(true);
       await api.post('/auth/register', { email, username, password });
       alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
       navigate('/login');
@@ -40,7 +77,7 @@ function Register() {
       if (err.response) {
         const data = err.response.data;
         if (data.errors && Array.isArray(data.errors)) {
-          setErrors(data.errors.map((e: any) => e.msg));
+          setErrors(data.errors.map((e: any) => e));
           return;
         }
         if (data.message) {
@@ -49,6 +86,8 @@ function Register() {
         }
       }
       setServerError('Une erreur est survenue lors de l’inscription');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -72,14 +111,18 @@ function Register() {
           </div>
         )}
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email (gmail, outlook, yahoo, …)"
             className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            onBlur={() => {
+              const err = validateEmailClient(email);
+              if (err) setErrors((prev) => Array.from(new Set([...prev, err])));
+            }}
           />
           <input
             type="text"
@@ -91,7 +134,7 @@ function Register() {
           />
           <input
             type="password"
-            placeholder="Mot de passe"
+            placeholder="Mot de passe (min. 8 caractères)"
             className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -100,9 +143,10 @@ function Register() {
           />
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-500 transition"
+            disabled={submitting}
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-500 transition disabled:opacity-60"
           >
-            S'inscrire
+            {submitting ? 'Création…' : "S'inscrire"}
           </button>
         </form>
 
@@ -121,5 +165,6 @@ function Register() {
 }
 
 export default Register;
+
 
 

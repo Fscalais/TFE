@@ -1,13 +1,19 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.middleware';
-import { getProfile, updateProfile } from '../controllers/user.controller';
+import {
+  getProfile,
+  updateProfile,
+  getPublicProfileById,
+  getPublicProfileByUsername,
+} from '../controllers/user.controller';
 
 const router = express.Router();
 
-// Récupérer les infos du profil connecté
 router.get('/me', authenticate, getProfile);
-
-// Mettre à jour le profil connecté
 router.put('/me', authenticate, updateProfile);
+
+router.get('/by-username/:username', authenticate, getPublicProfileByUsername);
+
+router.get('/:id', authenticate, getPublicProfileById);
 
 export default router;

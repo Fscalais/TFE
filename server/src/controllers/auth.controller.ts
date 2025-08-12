@@ -1,87 +1,64 @@
+//controller register et login
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
-import { validationResult } from 'express-validator';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export const register = async (req: Request, res: Response) => {
-  const { username, email, password } = req.body;
-  console.log('Attempt to register user:', { username, email, password: password ? '***' : undefined });
-
   try {
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Tous les champs sont obligatoires' });
-    }
+    const { email, username, password } = req.body as {
+      email: string; username: string; password: string;
+    };
 
-    // Vérifie si email ou username existent déjà
-    const existingUserEmail = await User.findOne({ email });
-    if (existingUserEmail) {
-      return res.status(400).json({ message: 'Email déjà utilisé' });
-    }
+    const emailLower = email.toLowerCase();
 
-    const existingUserName = await User.findOne({ username });
-    if (existingUserName) {
-      return res.status(400).json({ message: 'Nom d\'utilisateur déjà pris' });
-    }
+    const emailExists = await User.findOne({ email: emailLower });
+    if (emailExists) return res.status(400).json({ message: 'Email déjà utilisé' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, email, password: hashedPassword });
+    const usernameExists = await User.findOne({ username });
+    if (usernameExists) return res.status(400).json({ message: 'Pseudo déjà pris' });
 
-    res.status(201).json({ message: 'Utilisateur créé', userId: user._id });
+    const hash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email: emailLower,
+      username,
+      password: hash,
+      isEmailVerified: true,
+    });
+
+    return res.status(201).json({
+      message: 'Inscription réussie',
+      user: { id: user._id, username: user.username, email: user.email },
+    });
   } catch (err) {
-    console.error('Error during user registration:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err });
+    console.error('Register error:', err);
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-
 export const login = async (req: Request, res: Response) => {
-  // Validation des inputs
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password } = req.body;
-
   try {
-    console.log('📩 Email reçu :', email);
-    const user = await User.findOne({ email });
+    const { email, password } = req.body as { email: string; password: string };
 
-    if (!user) {
-      console.log('❌ Utilisateur non trouvé');
-      // Message générique pour éviter de révéler l’existence d’un compte
-      return res.status(401).json({ message: 'Identifiants incorrects' });
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    if (!user) return res.status(400).json({ message: 'Identifiants invalides' });
+
+    if (!user.password) {
+      return res.status(400).json({ message: 'Ce compte utilise Google OAuth' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password ?? '');
-    console.log('🔑 Mot de passe correct ?', isMatch);
-
-    if (!isMatch) {
-      console.log('❌ Mot de passe incorrect');
-      return res.status(401).json({ message: 'Identifiants incorrects' });
-    }
-
-    console.log("✅ Utilisateur trouvé :", user);
-    console.log("🔐 JWT_SECRET :", JWT_SECRET);
+    const ok = await bcrypt.compare(password, user.password as string);
+    if (!ok) return res.status(400).json({ message: 'Identifiants invalides' });
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
-    return res.status(200).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email
-      }
-    });
+    return res.json({ token, user: user.toJSON() });
   } catch (err) {
-    console.error('❌ Erreur dans loginUser:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err });
+    console.error('Login error:', err);
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 

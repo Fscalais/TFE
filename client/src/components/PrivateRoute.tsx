@@ -6,6 +6,8 @@ type Props = {
   children: ReactNode;
 };
 
+//accessible que par utilisateurs connectés
+
 const PrivateRoute: React.FC<Props> = ({ children }) => {
   const { user, loading } = useAuth();
 
