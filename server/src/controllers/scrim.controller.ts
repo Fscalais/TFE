@@ -250,10 +250,15 @@ export const getDiscordInvite = async (req: Request, res: Response) => {
 
     if (!scrim) return res.status(404).json({ message: 'Scrim non trouvé' });
 
-    const isHost = scrim.teamA?.toString() === team._id.toString();
-    const isOpponent = scrim.teamB?.toString?.() === team._id.toString();
+    const normId = (val: any) =>
+      (val && val._id && val._id.toString()) ||
+      (typeof val?.toString === 'function' ? val.toString() : undefined);
+
+    const teamIdStr = team._id.toString();
+    const isHost = normId(scrim.teamA) === teamIdStr;
+    const isOpponent = normId(scrim.teamB) === teamIdStr;
     const hasAccepted = (scrim.requests || []).some(
-      (r: any) => r.teamId?.toString() === team._id.toString() && r.status === 'accepted'
+      (r: any) => r.status === 'accepted' && normId(r.teamId) === teamIdStr
     );
 
     if (!isHost && !isOpponent && !hasAccepted) {
@@ -265,6 +270,7 @@ export const getDiscordInvite = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Erreur serveur', error });
   }
 };
+
 
 
 export const listRequestsForScrim = async (req: Request, res: Response) => {

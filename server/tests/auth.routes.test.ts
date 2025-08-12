@@ -3,12 +3,12 @@ import request from 'supertest';
 import authRouter from '../src/routes/auth.routes';
 
 jest.mock('../src/models/user.model');
-jest.mock('bcrypt');
+jest.mock('bcryptjs');
 jest.mock('jsonwebtoken');
 
 import User from '../src/models/user.model';
-import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 const app: Express = express();
 app.use(express.json());
@@ -35,22 +35,17 @@ describe('Auth Routes', () => {
 
     it('retourne 400 si email déjà utilisé', async () => {
       (User.findOne as jest.Mock).mockResolvedValueOnce({});
-
       const res = await request(app).post('/api/auth/register').send({
         username: 'user1',
         email: 'test@gmail.com',
         password: 'password123',
       });
-
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('Email déjà utilisé');
     });
 
     it('crée un utilisateur', async () => {
-      (User.findOne as jest.Mock)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-
+      (User.findOne as jest.Mock).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedpassword');
       (User.create as jest.Mock).mockResolvedValue({
         _id: 'user123',
@@ -87,12 +82,10 @@ describe('Auth Routes', () => {
 
     it('retourne 400 si user introuvable', async () => {
       mockFindOneSelect(null);
-
       const res = await request(app).post('/api/auth/login').send({
         email: 'test@gmail.com',
         password: 'password123',
       });
-
       expect(res.status).toBe(400);
       expect(res.body.message).toMatch(/Identifiants/i);
     });
@@ -105,7 +98,6 @@ describe('Auth Routes', () => {
         email: 'test@gmail.com',
         password: 'password123',
       });
-
       expect(res.status).toBe(400);
       expect(res.body.message).toMatch(/Identifiants/i);
     });
@@ -136,3 +128,4 @@ describe('Auth Routes', () => {
     });
   });
 });
+
