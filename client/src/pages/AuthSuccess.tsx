@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+//page callback après authentification : si token ->/profile sinon ->/login
+
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -8,14 +10,29 @@ export default function AuthSuccess() {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
+  const ranRef = useRef(false);
+  const timeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
 
+    const goLogin = () => navigate('/login', { replace: true });
+
+    const clear = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+
     if (!token) {
       setError('Token non trouvé dans l’URL');
-      setTimeout(() => navigate('/login', { replace: true }), 3000);
-      return;
+      timeoutRef.current = window.setTimeout(goLogin, 2000);
+      return () => clear();
     }
 
     (async () => {
@@ -24,13 +41,16 @@ export default function AuthSuccess() {
           headers: { Authorization: `Bearer ${token}` },
         });
         login(user, token);
-        navigate('/profile', { replace: true }); // ✅ évite le retour en arrière
+        clear();
+        navigate('/profile', { replace: true });
       } catch (err) {
         console.error('Erreur AuthSuccess:', err);
         setError('Token invalide ou expiré. Veuillez vous reconnecter.');
-        setTimeout(() => navigate('/login', { replace: true }), 3000);
+        timeoutRef.current = window.setTimeout(goLogin, 2000);
       }
     })();
+
+    return () => clear();
   }, [login, navigate]);
 
   if (error) {

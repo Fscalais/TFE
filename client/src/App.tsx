@@ -1,3 +1,4 @@
+//Pathing des routes
 import { Routes, Route } from 'react-router-dom';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
@@ -103,7 +104,6 @@ function App() {
             }
           />
 
-          {/* Profil public d'un membre (protégé pour les utilisateurs connectés) */}
           <Route
             path="/users/:userId"
             element={

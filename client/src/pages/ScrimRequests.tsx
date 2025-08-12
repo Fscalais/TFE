@@ -37,7 +37,7 @@ const ScrimRequests: React.FC<Props> = ({ scrimId }) => {
   const handleResponse = async (requestId: string, action: 'accept' | 'reject') => {
     try {
       await api.post(`/scrims/${scrimId}/respond`, { requestId, action });
-      fetchRequests(); // rafraîchir la liste après action
+      fetchRequests();
     } catch {
       alert('Erreur lors de la mise à jour de la demande');
     }

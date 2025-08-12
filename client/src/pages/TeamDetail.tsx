@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
-// Types
 type Member = { _id: string; username: string };
 type User = { _id: string; username: string };
 type Team = {
@@ -32,10 +31,8 @@ export default function TeamDetail() {
   const [leaving, setLeaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Derived flags
   const isOnlyMember = !!team && team.members.length === 1 && user?._id === team.creator._id && team.members[0]._id === user?._id;
 
-  // Fetch team
   useEffect(() => {
     const fetchTeam = async () => {
       try {
@@ -50,7 +47,6 @@ export default function TeamDetail() {
     fetchTeam();
   }, [id]);
 
-  // Invite member
   const handleInvite = async () => {
     if (!inviteUsername.trim() || !id) return;
     try {
@@ -67,17 +63,15 @@ export default function TeamDetail() {
     }
   };
 
-  // Creator clicks leave -> transfer or delete if alone
   const onCreatorLeaveClick = () => {
     if (!team) return;
     if (team.members.length <= 1) {
-      setShowDelete(true); // seul membre → proposer suppression
+      setShowDelete(true);
       return;
     }
     setShowTransfer(true);
   };
 
-  // Confirm transfer then leave (creator only)
   const handleConfirmLeave = async () => {
     if (!team || !user || !id) return;
     if (!newCreatorId) {
@@ -100,7 +94,6 @@ export default function TeamDetail() {
     }
   };
 
-  // Non-creator leave directly
   const handleLeaveTeam = async () => {
     if (!team || !user || !id) return;
     const isCreator = user._id === team.creator._id;
@@ -119,7 +112,6 @@ export default function TeamDetail() {
     }
   };
 
-  // Delete team (only member)
   const handleDeleteTeam = async () => {
     if (!id) return;
     try {
@@ -139,7 +131,6 @@ export default function TeamDetail() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-5xl px-6 py-10">
-        {/* Loading */}
         {loading && (
           <div className="space-y-6">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
@@ -158,13 +149,11 @@ export default function TeamDetail() {
 
         {!loading && team && (
           <>
-            {/* Header card */}
             <section className="mb-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
               <h1 className="text-3xl font-semibold">{team.name}</h1>
               <p className="mt-1 text-sm text-slate-300">{team.description || "Pas de description"}</p>
             </section>
 
-            {/* Messages */}
             {error && (
               <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>
             )}
@@ -173,7 +162,6 @@ export default function TeamDetail() {
             )}
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* Members */}
               <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
                 <h2 className="mb-3 text-xl font-semibold">👥 Membres</h2>
                 <ul className="space-y-2">
@@ -196,9 +184,8 @@ export default function TeamDetail() {
                 </ul>
               </section>
 
-              {/* Invite */}
               <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                <h2 className="mb-3 text-xl font-semibold">✉️ Inviter un membre</h2>
+                <h2 className="mb-3 text-xl font-semibold"> Inviter un membre</h2>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -218,7 +205,6 @@ export default function TeamDetail() {
                 <p className="mt-2 text-xs text-slate-400">L'utilisateur doit exister sur la plateforme.</p>
               </section>
 
-              {/* Danger zone */}
               <section className="md:col-span-2 rounded-3xl border border-white/10 bg-white/5 p-6">
                 <h3 className="mb-3 text-base font-medium text-rose-200">Zone sensible</h3>
                 <div className="flex flex-wrap items-center gap-2">
@@ -255,7 +241,6 @@ export default function TeamDetail() {
         )}
       </div>
 
-      {/* Transfer modal */}
       {showTransfer && team && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0e1333]/90 p-6 backdrop-blur-xl text-slate-100">
@@ -292,7 +277,6 @@ export default function TeamDetail() {
         </div>
       )}
 
-      {/* Delete modal */}
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0e1333]/90 p-6 backdrop-blur-xl text-slate-100">

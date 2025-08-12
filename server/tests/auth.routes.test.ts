@@ -2,7 +2,6 @@ import express, { Express } from 'express';
 import request from 'supertest';
 import authRouter from '../src/routes/auth.routes';
 
-// Mock mongoose model User et bcrypt + jwt
 jest.mock('../src/models/user.model');
 jest.mock('bcrypt');
 jest.mock('jsonwebtoken');
@@ -28,7 +27,7 @@ describe('Auth Routes', () => {
     });
 
     it('should return 400 if email already used', async () => {
-      (User.findOne as jest.Mock).mockResolvedValueOnce({}); // email exists
+      (User.findOne as jest.Mock).mockResolvedValueOnce({});
       const res = await request(app).post('/api/auth/register').send({
         username: 'user1',
         email: 'test@test.com',

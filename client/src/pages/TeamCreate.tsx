@@ -40,13 +40,11 @@ export default function TeamCreate() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-3xl px-6 py-12">
-        {/* Header */}
         <header className="mb-6">
-          <h1 className="text-3xl font-semibold">🛠️ Créer une équipe</h1>
+          <h1 className="text-3xl font-semibold"> Créer une équipe</h1>
           <p className="mt-1 text-sm text-slate-300">Donnez un nom à votre team et une courte description.</p>
         </header>
 
-        {/* Card */}
         <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -77,7 +75,6 @@ export default function TeamCreate() {
               />
             </div>
 
-            {/* Alerts */}
             {error && (
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
             )}
@@ -85,7 +82,6 @@ export default function TeamCreate() {
               <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-200">{message}</div>
             )}
 
-            {/* Actions */}
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="submit"

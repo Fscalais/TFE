@@ -74,7 +74,6 @@ export default function PublicProfile() {
   fetchVersion();
 }, []);
 
-  // fetch user public + riot data
   useEffect(() => {
     const run = async () => {
       if (!userId) return;
@@ -96,7 +95,6 @@ export default function PublicProfile() {
     run();
   }, [userId]);
 
-  // mastery
   useEffect(() => {
     const fetchMastery = async (puuid: string) => {
       try {
@@ -126,7 +124,7 @@ export default function PublicProfile() {
         <h1 className="text-4xl font-extrabold text-center text-indigo-300">{profile.username}</h1>
 
         <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-          <h2 className="text-xl font-bold mb-4 text-white">📍 Informations</h2>
+          <h2 className="text-xl font-bold mb-4 text-white"> Informations</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-200">
             <p><span className="font-semibold text-white">Localisation :</span> {profile.location || '-'}</p>
             <p><span className="font-semibold text-white">Âge :</span> {profile.age || '-'}</p>
@@ -135,7 +133,7 @@ export default function PublicProfile() {
         </section>
 
         <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-          <h2 className="text-xl font-bold mb-4 text-white">🎮 Rang & Riot</h2>
+          <h2 className="text-xl font-bold mb-4 text-white"> Rang & Riot</h2>
           <p><span className="font-semibold text-white">Rank :</span> {profile.rank || 'Pas de rank disponible'}</p>
           <p className="mt-2"><span className="font-semibold text-white">Pseudo Riot :</span> {profile.riotSummonerName || 'Aucun pseudo Riot renseigné'}</p>
         </section>
@@ -149,7 +147,7 @@ export default function PublicProfile() {
 
         {riotData && selectedMatch && (
           <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-            <h3 className="text-xl font-bold mb-4 text-indigo-300">🧠 Match sélectionné</h3>
+            <h3 className="text-xl font-bold mb-4 text-indigo-300"> Match sélectionné</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-gray-200">
               <div>
                 <strong>Champion :</strong> {selectedMatch.championName}
@@ -172,7 +170,7 @@ export default function PublicProfile() {
 
         {riotData?.lastMatches && (
           <section>
-            <h3 className="text-xl font-bold mb-4 text-indigo-300">🕹️ Historique des matchs</h3>
+            <h3 className="text-xl font-bold mb-4 text-indigo-300"> Historique des matchs</h3>
             <div className="flex gap-4 overflow-x-auto pb-2">
               {riotData.lastMatches.map((match: Match) => (
                 <button
@@ -200,7 +198,7 @@ export default function PublicProfile() {
 
         {masteries && (
           <section className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20 max-w-lg mx-auto">
-            <h3 className="text-xl font-bold mb-4 text-indigo-300">🏆 Champions maîtrisés</h3>
+            <h3 className="text-xl font-bold mb-4 text-indigo-300"> Champions maîtrisés</h3>
             <ul className="space-y-2 text-gray-200">
               {masteries.map((m, i) => (
                 <li key={m.championId} className="flex items-center gap-2">

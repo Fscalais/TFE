@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useMemo } from 'react';
 
 function Navbar() {
-  const { user, logout, loading } = useAuth(); // ✅ on récupère loading
+  const { user, logout, loading } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -17,7 +17,7 @@ function Navbar() {
       { to: '/', label: 'Accueil' },
       { to: user ? '/profile' : '/login', label: 'Profil' },
       { to: '/teams', label: 'Teams' },
-      { to: '/invitations', label: 'Invitations' }, // tu passeras à /notifications plus tard si besoin
+      { to: '/invitations', label: 'Invitations' },
     ],
     [user]
   );
@@ -75,7 +75,7 @@ function Navbar() {
 
             <div className="hidden md:flex items-center gap-4">
               {loading ? (
-                <div className="text-sm text-gray-400">…</div> // ✅ évite de clignoter pendant l’hydratation
+                <div className="text-sm text-gray-400">…</div>
               ) : !user ? (
                 <>
                   <Link to="/login" className="text-sm font-semibold text-gray-200 hover:text-indigo-300 transition">

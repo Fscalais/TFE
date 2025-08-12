@@ -6,25 +6,25 @@ const slides = [
     title: "Trouvez vos mates en 2 clics",
     description: "Matchmaking intelligent par rôle, rang et dispo.",
     image:
-      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1920&q=80", // e-sport stage
+      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1920&q=80",
   },
   {
     title: "Scrims organisés, niveau garanti",
     description: "Planifiez des scrims BO1/BO3/BO5, filtrez par rang minimum.",
     image:
-      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80", // controller neon
+      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80",
   },
   {
     title: "Stats propres. Progrès visibles.",
     description: "Suivez vos perfs, champions et historique des matchs.",
     image:
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1920&q=80", // rgb keyboard
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1920&q=80",
   },
   {
     title: "Créez votre team. Devenez une référence.",
     description: "Construisez votre identité, recrutez et grimpez la scène.",
     image:
-      "https://images.unsplash.com/photo-1518806118471-f28b20a1d79d?auto=format&fit=crop&w=1920&q=80", // gamer setup
+      "https://images.unsplash.com/photo-1518806118471-f28b20a1d79d?auto=format&fit=crop&w=1920&q=80",
   },
 ];
 
@@ -41,9 +41,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0b1029] via-[#111739] to-[#0b1029] text-slate-100">
-      {/* HERO */}
       <section className="relative overflow-hidden">
-        {/* Decorative grid */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,.15),transparent_35%),radial-gradient(circle_at_70%_60%,rgba(168,85,247,.12),transparent_35%)]" />
 
         <div className="mx-auto max-w-7xl px-6 pt-10 pb-14">
@@ -86,7 +84,6 @@ export default function Home() {
               </div>
             ))}
 
-            {/* Controls */}
             <button
               onClick={prev}
               aria-label="Précédent"
@@ -102,7 +99,6 @@ export default function Home() {
               ›
             </button>
 
-            {/* Dots + progress */}
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2">
               {slides.map((_, i) => (
                 <button
@@ -117,7 +113,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FEATURES */}
       <section className="mx-auto max-w-7xl px-6 py-14">
         <h3 className="mb-6 text-center text-2xl font-semibold">Contenu</h3>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -125,17 +120,17 @@ export default function Home() {
             {
               title: "Matchmaking intelligent",
               desc: "Rôles, rangs, serveurs et dispo : on filtre pour toi.",
-              emoji: "🎯",
+              emoji: "",
             },
             {
               title: "Scrims organisés",
               desc: "BO1/BO3/BO5, rang minimum, demandes, tout au même endroit.",
-              emoji: "⚔️",
+              emoji: "",
             },
             {
               title: "Stats & historique",
               desc: "K/D/A, champions, durée, vision… tout est suivi.",
-              emoji: "📈",
+              emoji: "",
             },
           ].map((f, i) => (
             <div
@@ -150,7 +145,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section className="mx-auto max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
           <h3 className="text-center text-2xl font-semibold">Comment ça marche</h3>
@@ -173,7 +167,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="mx-auto max-w-7xl px-6 pb-16">
         <div className="flex flex-col items-center justify-between gap-4 rounded-3xl border border-white/10 bg-gradient-to-r from-indigo-600/30 to-violet-600/30 p-8 text-center md:flex-row md:text-left">
           <div>
@@ -197,7 +190,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="border-t border-white/10 bg-black/20 py-8 text-center text-sm text-slate-400">
         © {new Date().getFullYear()} MatchMate — Tous droits réservés.
         <span className="mx-2">•</span>

@@ -1,9 +1,10 @@
+//Vérif clé RIOT + cache mémoire DDragon
 import { Request, Response } from 'express';
 import axios from 'axios';
 
 const apiKey = process.env.RIOT_API_KEY;
 if (!apiKey) {
-  console.error("❌ Clé API Riot manquante");
+  console.error(" Clé API Riot manquante");
   process.exit(1);
 }
 
@@ -159,7 +160,7 @@ export const fetchRiotData = async (req: Request, res: Response) => {
       lastMatches,
     });
   } catch (err: any) {
-    console.error("❌ Erreur Riot API :", err.response?.data || err.message);
+    console.error(" Erreur Riot API :", err.response?.data || err.message);
     return res.status(500).json({ message: "Erreur Riot API", error: err.response?.data || err.message });
   }
 };
@@ -185,7 +186,7 @@ export const fetchChampionMastery = async (req: Request, res: Response) => {
 
     res.json(topMasteries);
   } catch (err: any) {
-    console.error("❌ Erreur maîtrises:", err.response?.data || err.message);
+    console.error(" Erreur maîtrises:", err.response?.data || err.message);
     res.status(500).json({ message: "Erreur récupération maîtrises champions", error: err.response?.data || err.message });
   }
 };

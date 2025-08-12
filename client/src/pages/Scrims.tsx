@@ -112,10 +112,9 @@ export default function Scrims() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Header */}
         <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-3xl font-semibold">⚔️ Scrims</h1>
+            <h1 className="text-3xl font-semibold"> Scrims</h1>
             <p className="text-sm text-slate-300">Trouvez des adversaires et gérez vos demandes.</p>
           </div>
           <Link
@@ -126,14 +125,12 @@ export default function Scrims() {
           </Link>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
             {error}
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -148,7 +145,6 @@ export default function Scrims() {
 
         {!loading && (
           <>
-            {/* My scrims */}
             <section className="mb-10">
               <h2 className="mb-4 text-xl font-semibold">Mes scrims</h2>
               {myScrims.length === 0 ? (
@@ -176,7 +172,6 @@ export default function Scrims() {
               )}
             </section>
 
-            {/* Community scrims */}
             <section>
               <h2 className="mb-4 text-xl font-semibold">Scrims communautaires</h2>
               {communityScrims.length === 0 ? (
@@ -223,9 +218,7 @@ export default function Scrims() {
           </>
         )}
 
-        {/* Modal demande scrim */}
         <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)}>
-  {/* ⬇️ annule le p-6 du panneau blanc et remet un p-6 côté wrapper sombre */}
   <div className="-m-6 rounded-2xl border border-white/10 bg-[#0e1333]/90 p-6 text-slate-100 backdrop-blur-xl">
     <h3 className="mb-4 text-xl font-semibold">Demander ce scrim</h3>
 

@@ -1,3 +1,5 @@
+//charge utilisateur si token
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
 import api from '../services/api';
@@ -11,7 +13,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Normalise l'objet user (id toujours présent)
 const mapUser = (u: any): any => (u ? { ...u, id: u.id ?? u._id } : u);
 
 export function AuthProvider({ children }: { children: ReactNode }) {

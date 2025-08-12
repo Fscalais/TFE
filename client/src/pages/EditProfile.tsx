@@ -83,7 +83,7 @@ const EditProfile = () => {
     e.preventDefault();
     try {
       await api.put('/users/me', form);
-      setMessage('✅ Profil mis à jour !');
+      setMessage(' Profil mis à jour !');
       setTimeout(() => navigate('/profile'), 1000);
     } catch (err: any) {
       setMessage(err?.response?.data?.message || 'Erreur serveur');
@@ -151,7 +151,6 @@ const EditProfile = () => {
           disabled
         />
 
-        {/* Mood */}
         <div>
           <p className="font-semibold">Mood</p>
           <div className="flex gap-4 flex-wrap">
@@ -169,7 +168,6 @@ const EditProfile = () => {
           </div>
         </div>
 
-        {/* Langues */}
         <div>
           <p className="font-semibold">Langues parlées</p>
           <div className="flex gap-4 flex-wrap">
@@ -187,7 +185,6 @@ const EditProfile = () => {
           </div>
         </div>
 
-        {/* Jeux */}
         <div>
           <p className="font-semibold">Jeux préférés</p>
           <div className="flex gap-4 flex-wrap">
@@ -205,7 +202,6 @@ const EditProfile = () => {
           </div>
         </div>
 
-        {/* Rôles */}
         <div>
           <p className="font-semibold">Rôles</p>
           <div className="flex gap-4 flex-wrap">

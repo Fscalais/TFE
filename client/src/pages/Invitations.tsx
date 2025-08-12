@@ -2,9 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
-// Types
 type TeamInvite = {
-  _id: string; // team id
+  _id: string;
   name: string;
   description?: string;
   creator?: { username: string };
@@ -12,11 +11,11 @@ type TeamInvite = {
 
 type AppNotification = {
   _id: string;
-  type?: string; // "scrim" | "team" | "system" | ...
+  type?: string;
   text: string;
   createdAt?: string;
   read?: boolean;
-  link?: string; // optionnel
+  link?: string;
 };
 
 export default function NotificationsPage() {
@@ -33,7 +32,6 @@ export default function NotificationsPage() {
       try {
         const [invRes, notifRes] = await Promise.all([
           api.get("/teams/invitations"),
-          // Si l'API notifications n'existe pas encore, on ignore l'erreur
           api.get("/notifications").catch(() => ({ data: [] })),
         ]);
         setInvites(invRes.data || []);
@@ -110,10 +108,9 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Header */}
         <header className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">🔔 Notifications</h1>
+            <h1 className="text-3xl font-semibold"> Notifications</h1>
             <p className="mt-1 text-sm text-slate-300">Invitations d'équipes et notifications récentes.</p>
           </div>
           <div className="flex gap-2">
@@ -127,12 +124,10 @@ export default function NotificationsPage() {
           </div>
         </header>
 
-        {/* Error */}
         {error && (
           <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>
         )}
 
-        {/* Loading skeleton */}
         {loading && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -146,9 +141,8 @@ export default function NotificationsPage() {
 
         {!loading && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Invitations */}
             <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="mb-3 text-xl font-semibold">✉️ Invitations d'équipe</h2>
+              <h2 className="mb-3 text-xl font-semibold"> Invitations d'équipe</h2>
               {invites.length === 0 ? (
                 <p className="text-slate-300">Aucune invitation reçue.</p>
               ) : (
@@ -190,9 +184,8 @@ export default function NotificationsPage() {
               )}
             </section>
 
-            {/* Notifications */}
             <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="mb-3 text-xl font-semibold">🪧 Autres notifications</h2>
+              <h2 className="mb-3 text-xl font-semibold"> Autres notifications</h2>
               {notifications.length === 0 ? (
                 <p className="text-slate-300">Aucune notification.</p>
               ) : (

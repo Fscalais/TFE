@@ -1,3 +1,4 @@
+//Création team, suppression team, gestion membres et invitations
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Team from '../models/team.model';
@@ -22,13 +23,14 @@ export const createTeam = async (req: Request, res: Response) => {
   }
 };
 
-
 export const deleteTeam = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     const teamId = req.params.id;
 
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    const userIdStr = String(userId);
+
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
       return res.status(400).json({ message: 'ID invalide' });
     }
@@ -36,9 +38,8 @@ export const deleteTeam = async (req: Request, res: Response) => {
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
 
-    const isCreator = team.creator.toString() === userId.toString();
-    const isOnlyMember =
-      team.members.length === 1 && team.members[0].toString() === userId.toString();
+    const isCreator = team.creator.toString() === userIdStr;
+    const isOnlyMember = team.members.length === 1 && team.members[0].toString() === userIdStr;
 
     if (!isCreator || !isOnlyMember) {
       return res
@@ -47,7 +48,7 @@ export const deleteTeam = async (req: Request, res: Response) => {
     }
 
     await Team.findByIdAndDelete(teamId);
-    return res.json({ message: "Équipe supprimée" });
+    return res.json({ message: 'Équipe supprimée' });
   } catch (err) {
     console.error('Erreur deleteTeam:', err);
     return res.status(500).json({ message: 'Erreur serveur', error: err });
@@ -58,19 +59,22 @@ export const transferCreator = async (req: Request, res: Response) => {
   try {
     const teamId = req.params.id;
     const userId = req.userId;
-    const { newCreatorId } = req.body;
+    const { newCreatorId } = req.body as { newCreatorId: string };
 
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    const userIdStr = String(userId);
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
 
-    if (team.creator.toString() !== userId) {
+    if (team.creator.toString() !== userIdStr) {
       return res.status(403).json({ message: 'Seulement le créateur peut transférer le rôle' });
     }
 
-    if (!team.members.some(m => m.toString() === newCreatorId)) {
-      return res.status(400).json({ message: 'Le nouveau créateur doit être un membre de l\'équipe' });
+    if (!team.members.some((m) => m.toString() === newCreatorId)) {
+      return res
+        .status(400)
+        .json({ message: "Le nouveau créateur doit être un membre de l'équipe" });
     }
 
     team.creator = new mongoose.Types.ObjectId(newCreatorId);
@@ -88,29 +92,34 @@ export const leaveTeam = async (req: Request, res: Response) => {
     const teamId = req.params.id;
 
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    const userIdStr = String(userId);
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
 
-    if (!team.members.some(m => m.equals(userId))) {
-      return res.status(400).json({ message: 'Vous n\'êtes pas membre de cette équipe' });
+    const isMember = team.members.some((m) => m.toString() === userIdStr);
+    if (!isMember) {
+      return res.status(400).json({ message: "Vous n'êtes pas membre de cette équipe" });
     }
 
-    if (team.creator.equals(userId)) {
+    const isCreator = team.creator.toString() === userIdStr;
+
+    if (isCreator) {
       if (team.members.length > 1) {
-        const membersExceptCreator = team.members.filter(m => !m.equals(userId));
+        const membersExceptCreator = team.members.filter((m) => m.toString() !== userIdStr);
         team.creator = membersExceptCreator[0];
         team.members = membersExceptCreator;
+        await team.save();
+        return res.json({ message: "Vous avez quitté l’équipe avec succès (créateur transféré)" });
       } else {
         await Team.findByIdAndDelete(teamId);
-        return res.json({ message: 'Équipe supprimée car vous étiez le seul membre' });
+        return res.json({ message: "Équipe supprimée car vous étiez le seul membre" });
       }
     } else {
-      team.members = team.members.filter(m => !m.equals(userId));
+      team.members = team.members.filter((m) => m.toString() !== userIdStr);
+      await team.save();
+      return res.json({ message: "Vous avez quitté l’équipe avec succès" });
     }
-
-    await team.save();
-    res.json({ message: 'Vous avez quitté l’équipe avec succès' });
   } catch (err) {
     console.error('Erreur leaveTeam:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err });
@@ -121,8 +130,12 @@ export const getTeamsForUser = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
+    const userIdStr = String(userId);
 
-    const teams = await Team.find({ members: userId }).populate('members', 'username').populate('creator', 'username');
+    const teams = await Team.find({ members: userIdStr })
+      .populate('members', 'username')
+      .populate('creator', 'username');
+
     res.json(teams);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err });
@@ -135,6 +148,7 @@ export const getTeamById = async (req: Request, res: Response) => {
     const team = await Team.findById(teamId)
       .populate('members', 'username')
       .populate('creator', 'username');
+
     if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
     res.json(team);
   } catch (err) {
@@ -145,27 +159,29 @@ export const getTeamById = async (req: Request, res: Response) => {
 export const inviteMember = async (req: Request, res: Response) => {
   try {
     const teamId = req.params.id;
-    const { username } = req.body;
+    const { username } = req.body as { username: string };
 
     if (!username || typeof username !== 'string' || !username.trim()) {
-      return res.status(400).json({ message: 'Nom d\'utilisateur invalide' });
+      return res.status(400).json({ message: "Nom d'utilisateur invalide" });
     }
 
-    const userToInvite = await User.findOne({ username });
+    const userToInvite = await User.findOne({ username }).select('_id username').exec();
     if (!userToInvite) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    const invitedIdStr = String(userToInvite._id);
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe non trouvée' });
 
-    if (team.members.some(m => m.equals(userToInvite._id))) {
+    if (team.members.some((m) => m.toString() === invitedIdStr)) {
       return res.status(400).json({ message: 'Utilisateur déjà membre' });
     }
 
-    if (team.invitations.some(i => i.equals(userToInvite._id))) {
+    if (team.invitations.some((i) => i.toString() === invitedIdStr)) {
       return res.status(400).json({ message: 'Utilisateur déjà invité' });
     }
 
-    team.invitations.push(userToInvite._id);
+    team.invitations.push(new mongoose.Types.ObjectId(invitedIdStr));
     await team.save();
 
     res.json({ message: 'Invitation envoyée' });
@@ -180,9 +196,13 @@ export const getInvitationsForUser = async (req: Request, res: Response) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
 
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userIdStr = String(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userIdStr);
 
-    const teams = await Team.find({ invitations: { $in: [userObjectId] } }).populate('creator', 'username');
+    const teams = await Team.find({ invitations: { $in: [userObjectId] } }).populate(
+      'creator',
+      'username'
+    );
 
     res.json(teams);
   } catch (err) {
@@ -198,17 +218,21 @@ export const acceptInvitation = async (req: Request, res: Response) => {
 
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
 
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userIdStr = String(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userIdStr);
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe introuvable' });
 
-    if (!team.invitations.some(id => id.equals(userObjectId))) {
+    const hasInvite = team.invitations.some((id) => id.toString() === userObjectId.toString());
+    if (!hasInvite) {
       return res.status(400).json({ message: 'Pas d’invitation pour cette équipe' });
     }
 
     team.members.push(userObjectId);
-    team.invitations = team.invitations.filter(id => !id.equals(userObjectId));
+    team.invitations = team.invitations.filter(
+      (id) => id.toString() !== userObjectId.toString()
+    );
     await team.save();
 
     res.json({ message: 'Invitation acceptée', team });
@@ -224,16 +248,20 @@ export const declineInvitation = async (req: Request, res: Response) => {
 
     if (!userId) return res.status(401).json({ message: 'Utilisateur non authentifié' });
 
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userIdStr = String(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userIdStr);
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: 'Équipe introuvable' });
 
-    if (!team.invitations.some(id => id.equals(userObjectId))) {
+    const hasInvite = team.invitations.some((id) => id.toString() === userObjectId.toString());
+    if (!hasInvite) {
       return res.status(400).json({ message: 'Pas d’invitation pour cette équipe' });
     }
 
-    team.invitations = team.invitations.filter(id => !id.equals(userObjectId));
+    team.invitations = team.invitations.filter(
+      (id) => id.toString() !== userObjectId.toString()
+    );
     await team.save();
 
     res.json({ message: 'Invitation refusée' });
@@ -241,3 +269,4 @@ export const declineInvitation = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Erreur serveur', error: err });
   }
 };
+

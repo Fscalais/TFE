@@ -6,18 +6,29 @@ const requestSchema = new mongoose.Schema({
   requestedAt: { type: Date, default: Date.now },
 });
 
-const scrimSchema = new mongoose.Schema({
-  teamA: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
-  teamB: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' }, // équipe adverse acceptée
-  datetime: { type: Date, required: true },
-  status: { type: String, enum: ['open', 'pending', 'confirmed', 'cancelled', 'finished'], default: 'open' },
-  matchType: { type: String, enum: ['bo1', 'bo3', 'bo5'], default: 'bo1' },
-  minRank: { 
-    type: String, 
-    enum: ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'master', 'grandmaster', 'challenger'], 
-    default: 'bronze' 
+const scrimSchema = new mongoose.Schema(
+  {
+    teamA: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
+    teamB: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
+    datetime: { type: Date, required: true },
+    status: {
+      type: String,
+      enum: ['open', 'pending', 'confirmed', 'cancelled', 'finished'],
+      default: 'open',
+    },
+    matchType: { type: String, enum: ['bo1', 'bo3', 'bo5'], default: 'bo1' },
+    minRank: {
+      type: String,
+      enum: ['bronze','silver','gold','platinum','diamond','master','grandmaster','challenger'],
+      default: 'bronze',
+    },
+    requests: [requestSchema],
+
+    discordInvite: { type: String, default: null },
+    discordRoomId: { type: String, default: null },
   },
-  requests: [requestSchema],
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 export default mongoose.model('Scrim', scrimSchema);
+

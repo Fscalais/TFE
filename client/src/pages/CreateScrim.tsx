@@ -62,16 +62,14 @@ export default function CreateScrim() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-3xl px-6 py-10">
-        {/* Header */}
         <header className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">🗓️ Créer un scrim</h1>
+            <h1 className="text-3xl font-semibold"> Créer un scrim</h1>
             <p className="mt-1 text-sm text-slate-300">Planifiez un match et publiez-le à la communauté.</p>
           </div>
           <Link to="/scrims" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Retour</Link>
         </header>
 
-        {/* Card */}
         <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
           {fetching ? (
             <div className="space-y-4">

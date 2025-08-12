@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
-// Types
 export type Team = {
   _id: string;
   name: string;
@@ -41,10 +40,9 @@ export default function TeamList() {
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Top bar */}
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">🎮 Mes équipes</h1>
+            <h1 className="text-3xl font-semibold tracking-tight"> Mes équipes</h1>
             <p className="text-sm text-slate-400">Créez vos équipes et partez en Scrim !</p>
           </div>
 
@@ -72,14 +70,12 @@ export default function TeamList() {
           </div>
         </header>
 
-        {/* Error */}
         {error && (
           <div className="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
             {error}
           </div>
         )}
 
-        {/* Loading skeletons */}
         {loading && (
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -92,10 +88,9 @@ export default function TeamList() {
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && filtered.length === 0 && (
           <section className="mt-14 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-10 text-center">
-            <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center text-2xl">🧩</div>
+            <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center text-2xl"></div>
             <h3 className="text-lg font-medium">Aucune équipe trouvée</h3>
             <p className="mt-1 text-sm text-slate-300">
               Essayez un autre terme de recherche ou créez une nouvelle équipe.
@@ -111,7 +106,6 @@ export default function TeamList() {
           </section>
         )}
 
-        {/* Grid of teams */}
         {!loading && !error && filtered.length > 0 && (
           <section className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             {filtered.map((team) => (

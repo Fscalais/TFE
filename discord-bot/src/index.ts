@@ -1,3 +1,4 @@
+//Bot Discord
 import {
   Client,
   GatewayIntentBits,
@@ -16,7 +17,7 @@ app.use(express.json());
 
 const PORT = 3001;
 
-const INACTIVE_MS = 1 * 60 * 1000;
+const INACTIVE_MS = 10 * 60 * 1000;
 
 const client = new Client({
   intents: [
@@ -38,10 +39,15 @@ type RoomInfo = {
   textChannelId: string;
   voiceChannelId: string;
   inviteUrl: string;
-  lastActivityAt: number;  
+  lastActivityAt: number;
+  deadlineAt?: number;
   timer?: NodeJS.Timeout;
 };
 const activeRooms = new Map<string, RoomInfo>();
+
+function ts(d = Date.now()) {
+  return new Date(d).toISOString().split("T")[1].replace("Z", "");
+}
 
 async function deleteRoom(roomId: string) {
   const room = activeRooms.get(roomId);
@@ -53,57 +59,99 @@ async function deleteRoom(roomId: string) {
 
     if (room.timer) clearTimeout(room.timer);
 
-    await guild.channels.delete(room.textChannelId).catch(() => null);
-    await guild.channels.delete(room.voiceChannelId).catch(() => null);
+    const [textCh, voiceCh] = await Promise.all([
+      guild.channels.fetch(room.textChannelId).catch((e) => {
+        console.warn(`[CLEANUP] fetch text échoué ${room.textChannelId}:`, e?.message);
+        return null;
+      }),
+      guild.channels.fetch(room.voiceChannelId).catch((e) => {
+        console.warn(`[CLEANUP] fetch voice échoué ${room.voiceChannelId}:`, e?.message);
+        return null;
+      }),
+    ]);
 
-    activeRooms.delete(roomId);
-    console.log(`[CLEANUP] Salon ${roomId} supprimé`);
+    const results = await Promise.allSettled([
+      textCh && "delete" in textCh ? textCh.delete("Cleanup inactivité") : Promise.resolve("ok-text-inexistant"),
+      voiceCh && "delete" in voiceCh ? voiceCh.delete("Cleanup inactivité") : Promise.resolve("ok-voice-inexistant"),
+    ]);
+
+    results.forEach((r, i) => {
+      const kind = i === 0 ? "text" : "voice";
+      if (r.status === "fulfilled") {
+        console.log(`[CLEANUP] ${kind} supprimé (${roomId})`);
+      } else {
+        console.error(`[CLEANUP] ${kind} échec (${roomId}):`, r.reason?.message ?? r.reason);
+      }
+    });
+
+    const textGone = !textCh || results[0].status === "fulfilled";
+    const voiceGone = !voiceCh || results[1].status === "fulfilled";
+    if (textGone && voiceGone) {
+      activeRooms.delete(roomId);
+      console.log(`[CLEANUP] Salon ${roomId} supprimé (ok)`);
+    } else {
+      console.warn(`[CLEANUP] Salon ${roomId}: au moins un canal non supprimé`);
+    }
   } catch (err) {
     console.error("Erreur suppression salon Discord :", err);
   }
 }
 
+
 function scheduleInactivityTimer(roomId: string) {
   const room = activeRooms.get(roomId);
   if (!room) return;
 
+  const deadlineAt = room.lastActivityAt + INACTIVE_MS;
+  room.deadlineAt = deadlineAt;
+
   if (room.timer) clearTimeout(room.timer);
+
+  let delay = deadlineAt - Date.now();
+  if (!Number.isFinite(delay) || delay < 1000) delay = 1000;
 
   room.timer = setTimeout(async () => {
     const current = activeRooms.get(roomId);
     if (!current) return;
 
+    if (current.deadlineAt !== deadlineAt) {
+      return;
+    }
+
     try {
       const guild = await client.guilds.fetch(GUILD_ID);
       const voice = await guild.channels.fetch(current.voiceChannelId);
-
-
       // @ts-ignore
       const hasMembers = voice && "members" in voice && voice.members.size > 0;
       if (hasMembers) {
-        console.log(`[TIMER] ${roomId}: membres présents -> on reprogramme`);
+        console.log(`[${ts()}][TIMER] ${roomId}: membres présents -> on repousse l'inactivité`);
+        current.lastActivityAt = Date.now();
+        activeRooms.set(roomId, current);
         scheduleInactivityTimer(roomId);
         return;
       }
     } catch {
     }
 
-    const now = Date.now();
-    if (now - current.lastActivityAt >= INACTIVE_MS) {
+    if (Date.now() >= deadlineAt) {
       await deleteRoom(roomId);
     } else {
       scheduleInactivityTimer(roomId);
     }
-  }, INACTIVE_MS);
+  }, delay);
 
   activeRooms.set(roomId, room);
+
+  const mins = Math.round((delay / 60000) * 10) / 10;
+  console.log(`[${ts()}][TIMER] ${roomId}: nouvelle deadline dans ~${mins} min`);
 }
 
-function bumpActivity(roomId: string) {
+function bumpActivity(roomId: string, source: string) {
   const room = activeRooms.get(roomId);
   if (!room) return;
   room.lastActivityAt = Date.now();
   activeRooms.set(roomId, room);
+  console.log(`[${ts()}][ACTIVITY] ${source} sur ${roomId} -> reset inactivité`);
   scheduleInactivityTimer(roomId);
 }
 
@@ -120,8 +168,6 @@ function getRoomIdByVoiceChannel(channelId: string): string | null {
   return null;
 }
 
-// -------- API --------
-
 app.post("/create-room", async (req, res) => {
   const { roomId } = req.body;
   if (!roomId) return res.status(400).json({ error: "roomId manquant" });
@@ -130,26 +176,50 @@ app.post("/create-room", async (req, res) => {
     const guild = await client.guilds.fetch(GUILD_ID);
     if (!guild) throw new Error("Guild non trouvée");
 
+    const botId = client.user?.id ?? guild.members.me?.id;
+    if (!botId) throw new Error("Bot ID introuvable");
+
     const textChannel = await guild.channels.create({
-      name: `match-text-${roomId}`,
+      name: `match-${roomId}`,
       type: ChannelType.GuildText,
       parent: CATEGORY_ID,
       permissionOverwrites: [
+        // @everyone ne voit pas
         { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+        {
+          id: botId,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.ManageChannels,
+            PermissionsBitField.Flags.ReadMessageHistory,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.EmbedLinks,
+            PermissionsBitField.Flags.AttachFiles,
+          ],
+        },
       ],
     });
 
     const voiceChannel = await guild.channels.create({
-      name: `match-voice-${roomId}`,
+      name: `match-${roomId}`,
       type: ChannelType.GuildVoice,
       parent: CATEGORY_ID,
       permissionOverwrites: [
         { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.Connect] },
+        {
+          id: botId,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.ManageChannels,
+            PermissionsBitField.Flags.Connect,
+            PermissionsBitField.Flags.Speak,
+          ],
+        },
       ],
     });
 
     const invite = await (textChannel as TextChannel).createInvite({
-      maxAge: 3600, // 1h
+      maxAge: 3600,
       maxUses: 0,
       unique: true,
       reason: `Invitation pour le match ${roomId}`,
@@ -171,6 +241,7 @@ app.post("/create-room", async (req, res) => {
   }
 });
 
+
 app.post("/delete-room", async (req, res) => {
   const { roomId } = req.body;
   if (!roomId) return res.status(400).json({ error: "roomId manquant" });
@@ -184,30 +255,21 @@ app.post("/delete-room", async (req, res) => {
   }
 });
 
-
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
   const rid = getRoomIdByTextChannel(message.channelId);
   if (!rid) return;
-
-  console.log(`[ACTIVITY] message sur ${rid}`);
-  bumpActivity(rid);
+  bumpActivity(rid, "message");
 });
 
 client.on("voiceStateUpdate", (oldState, newState) => {
   if (newState.channelId) {
     const rid = getRoomIdByVoiceChannel(newState.channelId);
-    if (rid) {
-      console.log(`[ACTIVITY] join vocal ${rid}`);
-      bumpActivity(rid);
-    }
+    if (rid) bumpActivity(rid, "join vocal");
   }
   if (oldState.channelId && oldState.channelId !== newState.channelId) {
     const rid = getRoomIdByVoiceChannel(oldState.channelId);
-    if (rid) {
-      console.log(`[ACTIVITY] leave vocal ${rid}`);
-      bumpActivity(rid);
-    }
+    if (rid) bumpActivity(rid, "leave vocal");
   }
 });
 

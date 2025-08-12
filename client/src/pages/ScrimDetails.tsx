@@ -1,175 +1,299 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import api from "../services/api";
 
-interface Team {
-  _id: string;
-  name: string;
-}
+type Team = { _id: string; name: string };
 
-interface Request {
+type RequestItem = {
   _id: string;
   teamId: Team;
   status: string;
   requestedAt: string;
-}
+};
 
-interface Scrim {
+type Scrim = {
   _id: string;
   teamA: Team;
   teamB?: Team;
   datetime: string;
   matchType: string;
   minRank: string;
-  status: string;
-}
+  status: "open" | "pending" | "confirmed" | "cancelled" | "finished";
+  requests?: RequestItem[];
+  discordInvite?: string | null;
+};
+
+const Badge = ({
+  children,
+  tone = "indigo",
+}: {
+  children: React.ReactNode;
+  tone?: "indigo" | "emerald" | "rose" | "slate" | "violet";
+}) => {
+  const tones: Record<string, string> = {
+    indigo: "text-indigo-200 bg-indigo-500/10 border-indigo-400/30",
+    emerald: "text-emerald-200 bg-emerald-500/10 border-emerald-400/30",
+    rose: "text-rose-200 bg-rose-500/10 border-rose-400/30",
+    slate: "text-slate-200 bg-white/5 border-white/10",
+    violet: "text-violet-200 bg-violet-500/10 border-violet-400/30",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+};
+
+const niceDate = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const ScrimDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [scrim, setScrim] = useState<Scrim | null>(null);
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [loadingScrim, setLoadingScrim] = useState(true);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
-
-  const navigate = useNavigate();
+  const [myTeams, setMyTeams] = useState<Team[]>([]);
+  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingReq, setLoadingReq] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchScrim = async () => {
-      setLoadingScrim(true);
-      setError(null);
+    if (!id) return;
+    const run = async () => {
       try {
-        const res = await api.get('/scrims/my');
-        const foundScrim = res.data.find((s: Scrim) => s._id === id);
-        if (!foundScrim) {
-          setError('Scrim non trouvé ou vous n\'êtes pas le créateur');
-          setScrim(null);
-        } else {
-          setScrim(foundScrim);
-        }
-      } catch {
-        setError('Erreur lors du chargement du scrim');
+        setLoading(true);
+        const { data: scr } = await api.get(`/scrims/${id}`);
+        setScrim(scr);
+
+        const { data: teams } = await api.get("/teams");
+        setMyTeams(teams);
+
+        setErr(null);
+      } catch (e: any) {
+        setErr(e?.response?.data?.message || "Erreur chargement du scrim");
       } finally {
-        setLoadingScrim(false);
+        setLoading(false);
       }
     };
-
-    if (id) fetchScrim();
+    run();
   }, [id]);
+
+  const isHost = useMemo(() => {
+    if (!scrim) return false;
+    return myTeams.some((t) => t._id === scrim.teamA._id);
+  }, [scrim, myTeams]);
+
+  const canSeeRequests = isHost && scrim?.status !== "finished" && scrim?.status !== "cancelled";
 
   const fetchRequests = async () => {
     if (!id) return;
-    setLoadingRequests(true);
-    setRequestError(null);
     try {
-      const res = await api.get(`/scrims/${id}/requests`);
-      setRequests(res.data);
+      setLoadingReq(true);
+      const { data } = await api.get(`/scrims/${id}/requests`);
+      setRequests(data);
     } catch {
-      setRequestError('Erreur lors du chargement des demandes');
     } finally {
-      setLoadingRequests(false);
+      setLoadingReq(false);
     }
   };
 
   useEffect(() => {
-    if (scrim) {
-      fetchRequests();
-    }
-  }, [scrim]);
+    if (canSeeRequests) fetchRequests();
+  }, [canSeeRequests]);
 
-  const handleResponse = async (requestId: string, action: 'accept' | 'reject') => {
+  const handleRespond = async (requestId: string, action: "accept" | "reject") => {
     if (!id) return;
-    setRequestError(null);
-    setRequestSuccess(null);
-
-    if (action === 'accept' && scrim?.teamB) {
-      const confirmed = window.confirm(
-        'Une équipe adverse est déjà validée. Voulez-vous la remplacer par cette nouvelle équipe ?'
-      );
-      if (!confirmed) return;
-    }
-
+    setMsg(null);
     try {
       await api.post(`/scrims/${id}/respond`, { requestId, action });
-      setRequestSuccess(`Demande ${action}ée avec succès.`);
-      fetchRequests();
-      const res = await api.get('/scrims/my');
-      const foundScrim = res.data.find((s: Scrim) => s._id === id);
-      setScrim(foundScrim || null);
-    } catch {
-      setRequestError(`Erreur lors de la mise à jour de la demande.`);
+      setMsg(`Demande ${action}ée avec succès.`);
+      const { data: scr } = await api.get(`/scrims/${id}`);
+      setScrim(scr);
+      if (canSeeRequests) fetchRequests();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || "Erreur lors de la mise à jour");
     }
   };
 
-  if (loadingScrim) return <p>Chargement du scrim...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
+  const generateDiscord = async () => {
+    if (!id) return;
+    try {
+      const { data } = await api.post(`/scrims/${id}/discord`);
+      setScrim((s) => (s ? { ...s, discordInvite: data.invite } : s));
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || "Erreur génération de l'invite");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
+        <div className="mx-auto max-w-5xl px-6 py-10">Chargement…</div>
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
+        <div className="mx-auto max-w-5xl px-6 py-10 text-rose-300">{err}</div>
+      </div>
+    );
+  }
   if (!scrim) return null;
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-4">Détail du scrim</h2>
+    <div className="min-h-screen text-slate-100 bg-gradient-to-b from-[#171c3a] via-[#111739] to-[#0b1029]">
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        <header className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight"> Détail du scrim</h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Gérez les demandes et suivez l’état de votre match planifié.
+            </p>
+          </div>
+          <Link
+            to="/scrims"
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            ← Retour
+          </Link>
+        </header>
 
-      <div className="mb-6 border rounded p-4 bg-white shadow">
-        <p><strong>Équipe créatrice :</strong> {scrim.teamA.name}</p>
-        <p><strong>Équipe adverse :</strong> {scrim.teamB?.name || 'En attente d\'adversaire'}</p>
-        <p><strong>Date :</strong> {new Date(scrim.datetime).toLocaleString()}</p>
-        <p><strong>Type :</strong> {scrim.matchType.toUpperCase()}</p>
-        <p><strong>Rang minimum :</strong> {scrim.minRank}</p>
-        <p><strong>Statut :</strong> {scrim.status}</p>
-      </div>
-
-      <h3 className="text-2xl font-semibold mb-4">Demandes reçues</h3>
-
-      {requestError && <p className="text-red-600 mb-2">{requestError}</p>}
-      {requestSuccess && <p className="text-green-600 mb-2">{requestSuccess}</p>}
-
-      {loadingRequests ? (
-        <p>Chargement des demandes...</p>
-      ) : requests.length === 0 ? (
-        <p>Aucune demande en attente.</p>
-      ) : (
-        <ul className="space-y-4">
-          {requests.map(req => (
-            <li
-              key={req._id}
-              className="border p-4 rounded flex justify-between items-center bg-white shadow"
-            >
-              <div>
-                <strong>{req.teamId.name}</strong><br />
-                Demandé le {new Date(req.requestedAt).toLocaleString()}
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-slate-300">Équipe créatrice</div>
+              <div className="mt-1 text-lg font-semibold">{scrim.teamA.name}</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-slate-300">Équipe adverse</div>
+              <div className="mt-1 text-lg font-semibold">
+                {scrim.teamB?.name || "En attente d'adversaire"}
               </div>
-              <div className="space-x-2">
-                <button
-                  onClick={() => handleResponse(req._id, 'accept')}
-                  className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                >
-                  Accepter
-                </button>
-                <button
-                  onClick={() => handleResponse(req._id, 'reject')}
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                >
-                  Refuser
-                </button>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-slate-300">Date</div>
+              <div className="mt-1 font-medium">{niceDate(scrim.datetime)}</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-slate-300">Badges</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge tone="violet">{scrim.matchType.toUpperCase()}</Badge>
+                <Badge tone="indigo">Rang min: {scrim.minRank}</Badge>
+                {scrim.status === "open" && <Badge tone="emerald">Ouvert</Badge>}
+                {scrim.status !== "open" && <Badge tone="rose">{scrim.status}</Badge>}
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          </div>
+        </section>
 
-      <div className="mt-6">
-        <Link
-          to="/scrims"
-          className="text-indigo-600 hover:underline"
-        >
-          ← Retour à la liste des scrims
-        </Link>
+        {scrim.status === "confirmed" && (
+          <section className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+            <h2 className="mb-3 text-2xl font-semibold"> Salon Discord</h2>
+            {scrim.discordInvite ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={scrim.discordInvite}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-medium text-white shadow"
+                >
+                  Rejoindre le salon
+                </a>
+                <code className="rounded bg-black/30 px-2 py-1 text-xs">{scrim.discordInvite}</code>
+              </div>
+            ) : isHost ? (
+              <button
+                onClick={generateDiscord}
+                className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600"
+              >
+                Générer le salon Discord
+              </button>
+            ) : (
+              <p className="text-slate-300">
+                Le salon Discord sera bientôt disponible. Contactez l’hôte si besoin.
+              </p>
+            )}
+          </section>
+        )}
+
+        {canSeeRequests && (
+          <section className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold"> Demandes reçues</h2>
+              <button
+                onClick={fetchRequests}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs hover:bg-white/10"
+              >
+                Rafraîchir
+              </button>
+            </div>
+
+            {msg && (
+              <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-200">
+                {msg}
+              </div>
+            )}
+
+            {loadingReq ? (
+              <div className="text-slate-300">Chargement…</div>
+            ) : requests.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-slate-300">
+                Aucune demande en attente.
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {requests.map((r) => (
+                  <li
+                    key={r._id}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="text-lg font-semibold">{r.teamId.name}</div>
+                      <div className="text-sm text-slate-300">
+                        Demandé le {niceDate(r.requestedAt)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleRespond(r._id, "accept")}
+                        className="rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-500"
+                      >
+                        Accepter
+                      </button>
+                      <button
+                        onClick={() => handleRespond(r._id, "reject")}
+                        className="rounded-xl bg-rose-500/90 px-4 py-2 text-sm font-medium text-white shadow hover:bg-rose-500"
+                      >
+                        Refuser
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        <div className="mt-6">
+          <Link
+            to="/scrims"
+            className="text-indigo-300 hover:text-indigo-200 hover:underline"
+          >
+            ← Retour à la liste des scrims
+          </Link>
+        </div>
       </div>
     </div>
   );
 };
 
 export default ScrimDetail;
-

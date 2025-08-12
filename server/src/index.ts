@@ -1,3 +1,4 @@
+//Sécu et config + OAuth Google + Routes API + Socket.IO + matchmaking
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -6,8 +7,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import axios from 'axios';
 import passport from 'passport';
-import session from 'express-session';
 import jwt from 'jsonwebtoken';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 import authRoutes from './routes/auth.routes';
@@ -15,8 +17,8 @@ import userRoutes from './routes/user.routes';
 import teamRoutes from './routes/team.routes';
 import riotRoutes from './routes/riot.routes';
 import matchmakingRoutes from './routes/matchmaking.routes';
-import User from './models/user.model';
 import scrimRoutes from './routes/scrim.routes';
+import User from './models/user.model';
 
 dotenv.config();
 
@@ -28,31 +30,26 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
 const DISCORD_BOT_URL = process.env.DISCORD_BOT_URL || 'http://localhost:3001';
 
-// ---------- CORS ----------
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false,
+}));
+app.disable('x-powered-by');
+
+app.use(express.json({ limit: '1mb' }));
+
 app.use(cors({
   origin: [CLIENT_URL, 'http://localhost:3000'],
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));
-//app.options('(.*)', cors());
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && [CLIENT_URL, 'http://localhost:3000'].includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
 
-app.use(express.json());
-app.use('/api', scrimRoutes);
+const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 });
+app.use(globalLimiter);
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
+app.use('/api/auth', authLimiter);
 
-// ---------- Google OAuth ----------
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj: any, done: (err: any, user?: any) => void) => done(null, obj));
 
@@ -63,7 +60,7 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       callbackURL: `${API_BASE_URL}/auth/google/callback`,
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (_accessToken, _refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ googleId: profile.id });
         if (!user) {
@@ -95,16 +92,15 @@ app.get(
   }
 );
 
-// ---------- Routes API ----------
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/riot', riotRoutes);
+app.use('/api', scrimRoutes);
 app.use('/matchmaking', matchmakingRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// ---------- Socket.IO ----------
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -115,7 +111,20 @@ const io = new Server(server, {
   transports: ['websocket', 'polling'],
 });
 
-// ---------- Matchmaking ----------
+io.use((socket, next) => {
+  try {
+    const raw =
+      (socket.handshake.auth as any)?.token ||
+      socket.handshake.headers?.authorization?.split(' ')[1];
+    if (!raw) return next(new Error('Missing token'));
+    const payload = jwt.verify(raw, JWT_SECRET) as any;
+    (socket.data as any).userId = payload.id || payload.sub || payload._id;
+    return next();
+  } catch {
+    return next(new Error('Invalid token'));
+  }
+});
+
 const RANKS = [
   'Fer','Bronze','Argent','Or','Platine','Émeraude','Diamant','Maître','GrandMaître','Challenger',
 ] as const;
@@ -190,9 +199,11 @@ async function createDiscordRoom(roomId: string): Promise<string | null> {
 io.on('connection', (socket) => {
   console.log(`Client connecté : ${socket.id}`);
 
-  socket.on('startSearch', async (criteria: Omit<SearchCriteria, 'socketId'>) => {
+  socket.on('startSearch', async (criteria: Omit<SearchCriteria, 'socketId' | 'userId'> & { userId?: string }) => {
+    const userId = (socket.data as any)?.userId;
+    if (!userId) return;
+
     if (
-      !criteria?.userId ||
       !Array.isArray(criteria.languages) || criteria.languages.length === 0 ||
       !Array.isArray(criteria.roles)     || criteria.roles.length === 0 || criteria.roles.length > 2 ||
       !Array.isArray(criteria.moods)     || criteria.moods.length === 0 ||
@@ -203,7 +214,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    waitingPlayers.push({ ...criteria, socketId: socket.id });
+    waitingPlayers.push({ ...criteria, userId, socketId: socket.id });
 
     const matchedTeam = tryMatchPlayers();
     if (matchedTeam) {
@@ -237,6 +248,14 @@ io.on('connection', (socket) => {
   });
 });
 
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+  return res.status(500).json({ message: err?.message || 'Erreur serveur', stack: err?.stack });
+});
+
 mongoose
   .connect(process.env.MONGO_URI as string)
   .then(() => {
@@ -249,3 +268,4 @@ mongoose
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err);
   });
+

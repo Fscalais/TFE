@@ -24,12 +24,11 @@ const ranks = [
 
 function Match() {
   const { user, loading } = useAuth();
-  const userId = user?._id; // ✅ _id (et pas id)
+  const userId = user?._id;
   const socket = useSocket();
 
-  // --- Multi-criteria ---
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // max 2
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
   const [selectedRank, setSelectedRank] = useState<string>("");
   const [teamSize, setTeamSize] = useState<number>(1);
@@ -63,7 +62,7 @@ function Match() {
 
   const startSearch = () => {
     if (!socket) return;
-    if (!userId) return alert("Tu dois être connecté pour lancer une recherche."); // PrivateRoute protège déjà, c’est au cas où
+    if (!userId) return alert("Tu dois être connecté pour lancer une recherche.");
     if (selectedLanguages.length === 0) return alert("Choisis au moins une langue.");
     if (selectedRoles.length === 0 || selectedRoles.length > 2) return alert("Choisis 1 à 2 rôles maximum.");
     if (selectedMoods.length === 0) return alert("Choisis au moins un mood.");
@@ -140,7 +139,7 @@ function Match() {
     });
   };
 
-  if (loading) return null; // évite les faux négatifs pendant l’hydratation
+  if (loading) return null;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-800">
@@ -165,7 +164,6 @@ function Match() {
               className="col-span-2 w-full max-w-xl mx-auto bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl"
             >
               <div className="space-y-6">
-                {/* Languages */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Languages className="w-5 h-5" /> Langues
@@ -191,7 +189,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Roles (max 2) */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Gamepad2 className="w-5 h-5" /> Rôles (max 2)
@@ -221,7 +218,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Moods */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Smile className="w-5 h-5" /> Moods
@@ -247,7 +243,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Rank */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">Rang</label>
                   <div className="flex flex-wrap gap-2">
@@ -271,7 +266,6 @@ function Match() {
                   </div>
                 </div>
 
-                {/* Team size */}
                 <div>
                   <label className="flex items-center gap-2 text-indigo-100 font-medium mb-2">
                     <Users className="w-5 h-5" /> Nombre de coéquipiers à trouver
@@ -305,7 +299,6 @@ function Match() {
             </motion.form>
           )}
 
-          {/* Searching */}
           <AnimatePresence>
             {searching && (
               <motion.div
@@ -344,7 +337,6 @@ function Match() {
             )}
           </AnimatePresence>
 
-          {/* Match found */}
           {!searching && matchTeam && !roomId && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -387,7 +379,6 @@ function Match() {
             </motion.div>
           )}
 
-          {/* Chat */}
           {roomId && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="col-span-2">
               <ChatRoom discordInvite={discordInvite} onLeave={leaveChat} />
