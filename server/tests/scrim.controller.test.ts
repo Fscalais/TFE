@@ -13,7 +13,7 @@ describe('Scrim Controller', () => {
   let req: any, res: any;
   beforeEach(() => { jest.clearAllMocks(); req = {}; res = mockRes(); });
 
-  test('respondRequest -> accepte, set teamB + confirmed + invite discord', async () => {
+  test('respondRequest -> accepte, set teamB + confirme + invite discord', async () => {
     req.userId = 'host1';
     req.params = { id: 'scrim1' };
     req.body = { requestId: 'req1', action: 'accept' };
