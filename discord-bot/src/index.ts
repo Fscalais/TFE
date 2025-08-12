@@ -1,4 +1,4 @@
-//Bot Discord
+// src/index.ts
 import {
   Client,
   GatewayIntentBits,
@@ -12,13 +12,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-const PORT = 3001;
+// Autorise uniquement ton API (optionnel mais conseillé)
+const ALLOWED_ORIGIN = process.env.API_BASE_URL || "*";
+app.use(
+  cors({
+    origin: ALLOWED_ORIGIN,
+  })
+);
 
+// ⚠️ Render fournit PORT via env var
+const PORT = Number(process.env.PORT) || 3001;
+
+// Inactivité (ex: 10 min)
 const INACTIVE_MS = 10 * 60 * 1000;
 
+// Intents NECESSAIRES (et à activer dans le Portal : Message Content Intent)
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -28,13 +38,18 @@ const client = new Client({
   ],
 });
 
-const GUILD_ID = "1402307106245316799";
-const CATEGORY_ID = "1402307106840776797";
+// IDs serveur/catégorie (à copier depuis Discord via “Developer Mode”)
+const GUILD_ID = process.env.GUILD_ID as string;
+const CATEGORY_ID = process.env.CATEGORY_ID as string;
+
+// (Optionnel) secret partagé pour authentifier les appels venant de ton API
+const BOT_SHARED_SECRET = process.env.BOT_SHARED_SECRET || "";
 
 client.once("ready", () => {
-  console.log(`Bot connecté en tant que ${client.user?.tag}`);
+  console.log(`✅ Bot connecté en tant que ${client.user?.tag}`);
 });
 
+// --- utils ---
 type RoomInfo = {
   textChannelId: string;
   voiceChannelId: string;
@@ -60,43 +75,21 @@ async function deleteRoom(roomId: string) {
     if (room.timer) clearTimeout(room.timer);
 
     const [textCh, voiceCh] = await Promise.all([
-      guild.channels.fetch(room.textChannelId).catch((e) => {
-        console.warn(`[CLEANUP] fetch text échoué ${room.textChannelId}:`, e?.message);
-        return null;
-      }),
-      guild.channels.fetch(room.voiceChannelId).catch((e) => {
-        console.warn(`[CLEANUP] fetch voice échoué ${room.voiceChannelId}:`, e?.message);
-        return null;
-      }),
+      guild.channels.fetch(room.textChannelId).catch(() => null),
+      guild.channels.fetch(room.voiceChannelId).catch(() => null),
     ]);
 
-    const results = await Promise.allSettled([
-      textCh && "delete" in textCh ? textCh.delete("Cleanup inactivité") : Promise.resolve("ok-text-inexistant"),
-      voiceCh && "delete" in voiceCh ? voiceCh.delete("Cleanup inactivité") : Promise.resolve("ok-voice-inexistant"),
+    await Promise.allSettled([
+      textCh && "delete" in textCh ? textCh.delete("Cleanup inactivité") : Promise.resolve(null),
+      voiceCh && "delete" in voiceCh ? voiceCh.delete("Cleanup inactivité") : Promise.resolve(null),
     ]);
 
-    results.forEach((r, i) => {
-      const kind = i === 0 ? "text" : "voice";
-      if (r.status === "fulfilled") {
-        console.log(`[CLEANUP] ${kind} supprimé (${roomId})`);
-      } else {
-        console.error(`[CLEANUP] ${kind} échec (${roomId}):`, r.reason?.message ?? r.reason);
-      }
-    });
-
-    const textGone = !textCh || results[0].status === "fulfilled";
-    const voiceGone = !voiceCh || results[1].status === "fulfilled";
-    if (textGone && voiceGone) {
-      activeRooms.delete(roomId);
-      console.log(`[CLEANUP] Salon ${roomId} supprimé (ok)`);
-    } else {
-      console.warn(`[CLEANUP] Salon ${roomId}: au moins un canal non supprimé`);
-    }
+    activeRooms.delete(roomId);
+    console.log(`[CLEANUP] Salon ${roomId} supprimé`);
   } catch (err) {
     console.error("Erreur suppression salon Discord :", err);
   }
 }
-
 
 function scheduleInactivityTimer(roomId: string) {
   const room = activeRooms.get(roomId);
@@ -107,16 +100,12 @@ function scheduleInactivityTimer(roomId: string) {
 
   if (room.timer) clearTimeout(room.timer);
 
-  let delay = deadlineAt - Date.now();
-  if (!Number.isFinite(delay) || delay < 1000) delay = 1000;
-
+  let delay = Math.max(1000, deadlineAt - Date.now());
   room.timer = setTimeout(async () => {
     const current = activeRooms.get(roomId);
     if (!current) return;
-
-    if (current.deadlineAt !== deadlineAt) {
-      return;
-    }
+    // évite les collisions si on a replanifié
+    if (current.deadlineAt !== deadlineAt) return;
 
     try {
       const guild = await client.guilds.fetch(GUILD_ID);
@@ -124,14 +113,12 @@ function scheduleInactivityTimer(roomId: string) {
       // @ts-ignore
       const hasMembers = voice && "members" in voice && voice.members.size > 0;
       if (hasMembers) {
-        console.log(`[${ts()}][TIMER] ${roomId}: membres présents -> on repousse l'inactivité`);
         current.lastActivityAt = Date.now();
         activeRooms.set(roomId, current);
         scheduleInactivityTimer(roomId);
         return;
       }
-    } catch {
-    }
+    } catch {}
 
     if (Date.now() >= deadlineAt) {
       await deleteRoom(roomId);
@@ -141,9 +128,6 @@ function scheduleInactivityTimer(roomId: string) {
   }, delay);
 
   activeRooms.set(roomId, room);
-
-  const mins = Math.round((delay / 60000) * 10) / 10;
-  console.log(`[${ts()}][TIMER] ${roomId}: nouvelle deadline dans ~${mins} min`);
 }
 
 function bumpActivity(roomId: string, source: string) {
@@ -168,7 +152,22 @@ function getRoomIdByVoiceChannel(channelId: string): string | null {
   return null;
 }
 
-app.post("/create-room", async (req, res) => {
+// --- middleware d’auth (optionnel mais recommandé) ---
+function requireBotSecret(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!BOT_SHARED_SECRET) return next(); // si pas configuré, on laisse passer (dev)
+  const header = req.header("x-bot-secret");
+  if (header !== BOT_SHARED_SECRET) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  next();
+}
+
+// --- routes HTTP ---
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, bot: client.user?.tag ?? null });
+});
+
+app.post("/create-room", requireBotSecret, async (req, res) => {
   const { roomId } = req.body;
   if (!roomId) return res.status(400).json({ error: "roomId manquant" });
 
@@ -184,7 +183,6 @@ app.post("/create-room", async (req, res) => {
       type: ChannelType.GuildText,
       parent: CATEGORY_ID,
       permissionOverwrites: [
-        // @everyone ne voit pas
         { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
         {
           id: botId,
@@ -195,6 +193,7 @@ app.post("/create-room", async (req, res) => {
             PermissionsBitField.Flags.SendMessages,
             PermissionsBitField.Flags.EmbedLinks,
             PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.CreateInstantInvite,
           ],
         },
       ],
@@ -222,7 +221,7 @@ app.post("/create-room", async (req, res) => {
       maxAge: 3600,
       maxUses: 0,
       unique: true,
-      reason: `Invitation pour le match ${roomId}`,
+      reason: `Invitation pour le match/scrim ${roomId}`,
     });
 
     activeRooms.set(roomId, {
@@ -241,8 +240,7 @@ app.post("/create-room", async (req, res) => {
   }
 });
 
-
-app.post("/delete-room", async (req, res) => {
+app.post("/delete-room", requireBotSecret, async (req, res) => {
   const { roomId } = req.body;
   if (!roomId) return res.status(400).json({ error: "roomId manquant" });
 
@@ -255,6 +253,7 @@ app.post("/delete-room", async (req, res) => {
   }
 });
 
+// --- listeners Discord (activité) ---
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
   const rid = getRoomIdByTextChannel(message.channelId);
@@ -276,5 +275,5 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 app.listen(PORT, () => {
-  console.log(`API bot Discord démarrée sur http://localhost:${PORT}`);
+  console.log(`🌐 API bot Discord sur :${PORT}`);
 });
