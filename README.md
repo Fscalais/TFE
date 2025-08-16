@@ -12,7 +12,12 @@ Depuis /tfe
 npm ci  
 npm start  
 `  
-
+## Pour lancer les tests  
+Depuis /tfe  
+`cd server  
+npm ci  
+npx jest --runInBand
+`  
 # Ce qui ne fonctionnera pas :  
 Google OAuth -> pas de clé API car pas de .env  
 Bot Discord -> pas de clé API car pas de .env  
