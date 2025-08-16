@@ -21,4 +21,5 @@ npx jest --runInBand
 # Ce qui ne fonctionnera pas :  
 Google OAuth -> pas de clé API car pas de .env  
 Bot Discord -> pas de clé API car pas de .env  
+Riot API -> pas de clé API car pas de .env
 
