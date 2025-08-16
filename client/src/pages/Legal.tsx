@@ -36,15 +36,7 @@ function Legal() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">5. Cookies</h2>
-        <p>
-          Le site utilise des cookies pour améliorer votre expérience utilisateur et réaliser des statistiques anonymes.
-          Vous pouvez configurer votre navigateur pour refuser les cookies, cependant certaines fonctionnalités pourraient ne plus fonctionner correctement.
-        </p>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">6. Contact</h2>
+        <h2 className="text-xl font-semibold mb-2">5. Contact</h2>
         <p>
           Pour toute question relative à la protection des données ou aux présentes mentions, contactez-nous à : contact@matchmate.com
         </p>
